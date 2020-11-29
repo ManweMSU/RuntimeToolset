@@ -64,6 +64,7 @@ struct BuilderState {
 	bool clean = false;
 	bool pathout = false;
 	bool build_cache = false;
+	bool print_information = false;
 
 	string runtime_source_path;
 	string runtime_bootstrapper_path;

@@ -1,0 +1,17 @@
+{
+    "configurations": [
+        {
+            "name": "Run (Mac OS)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/Users/manwe/Documents/GitHub/RuntimeToolset/_build_debug/macosx/ertbuild",
+            "args": [
+            ],
+            "stopAtEntry": false,
+            "cwd": "/Users/manwe/Documents/GitHub/RuntimeToolset/_build_debug/macosx",
+            "externalConsole": true,
+            "MIMode": "lldb"
+        }
+    ],
+    "version": "0.2.0"
+}

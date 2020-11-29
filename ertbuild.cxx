@@ -271,6 +271,8 @@ int ParseCommandLine(Console & console)
 					state.clean = true;
 				} else if (arg == L'E') {
 					state.shelllog = true;
+				} else if (arg == L'I') {
+					state.print_information = true;
 				} else if (arg == L'N') {
 					state.nologo = true;
 				} else if (arg == L'O') {
@@ -288,6 +290,15 @@ int ParseCommandLine(Console & console)
 					}
 				} else if (arg == L'b') {
 					state.build_cache = true;
+				} else if (arg == L'c') {
+					if (i < args->Length()) {
+						int error = SelectTarget(args->ElementAt(i), BuildTargetClass::Configuration, console);
+						if (error) return error;
+						i++;
+					} else {
+						console << TextColor(Console::ColorYellow) << L"Invalid command line: argument expected." << TextColorDefault() << LineFeed();
+						return ERTBT_INVALID_COMMAND_LINE;
+					}
 				} else if (arg == L'd') {
 					int error = SelectTarget(L"debug", BuildTargetClass::Configuration, console);
 					if (error) return error;
@@ -407,6 +418,34 @@ int BuildProject(Console & console)
 	if (!state.silent) console << TextColor(Console::ColorGreen) << FormatString(L"Project build have completed successfully, %0 ms spent.", end - start) << TextColorDefault() << LineFeed();
 	return ERTBT_SUCCESS;
 }
+void PrintTargetsInformation(Console & console)
+{
+	int maxlen = 0;
+	for (auto & t : state.vol_os) if (t.Name.Length() > maxlen) maxlen = t.Name.Length();
+	for (auto & t : state.vol_arch) if (t.Name.Length() > maxlen) maxlen = t.Name.Length();
+	for (auto & t : state.vol_conf) if (t.Name.Length() > maxlen) maxlen = t.Name.Length();
+	for (auto & t : state.vol_subsys) if (t.Name.Length() > maxlen) maxlen = t.Name.Length();
+	console << L"Available processor architectures:" << LineFeed();
+	for (auto & t : state.vol_arch) {
+		console << L"  " << TextColor(Console::ColorMagenta) << t.Name << string(L' ', maxlen - t.Name.Length()) << TextColorDefault()
+			<< L" - " << (t.Default ? L"[default] " : L"") << t.HumanReadableName << LineFeed();
+	}
+	console << L"Available operating systems:" << LineFeed();
+	for (auto & t : state.vol_os) {
+		console << L"  " << TextColor(Console::ColorBlue) << t.Name << string(L' ', maxlen - t.Name.Length()) << TextColorDefault()
+			<< L" - " << (t.Default ? L"[default] " : L"") << t.HumanReadableName << LineFeed();
+	}
+	console << L"Available target configurations:" << LineFeed();
+	for (auto & t : state.vol_conf) {
+		console << L"  " << TextColor(Console::ColorCyan) << t.Name << string(L' ', maxlen - t.Name.Length()) << TextColorDefault()
+			<< L" - " << (t.Default ? L"[default] " : L"") << t.HumanReadableName << LineFeed();
+	}
+	console << L"Available build subsystems:" << LineFeed();
+	for (auto & t : state.vol_subsys) {
+		console << L"  " << TextColor(Console::ColorGreen) << t.Name << string(L' ', maxlen - t.Name.Length()) << TextColorDefault()
+			<< L" - " << (t.Default ? L"[default] " : L"") << t.HumanReadableName << LineFeed();
+	}
+}
 
 int Main(void)
 {
@@ -427,6 +466,7 @@ int Main(void)
 			if (!state.silent) console << TextColor(Console::ColorRed) << L"Invalid command line: both project file and build cache option specified." << TextColorDefault() << LineFeed();
 			return ERTBT_DUPLICATE_INPUT_FILE;
 		}
+		if (state.print_information) PrintTargetsInformation(console);
 		if (state.project_file_path.Length()) {
 			error = LoadProject(console);
 			if (error) return error;
@@ -438,18 +478,20 @@ int Main(void)
 		} else if (state.build_cache) {
 			MakeLocalConfiguration(console);
 			return BuildRuntime(console);
-		} else if (!state.silent) {
+		} else if (!state.silent && !state.print_information) {
 			console << L"Command line syntax:" << LineFeed();
-			console << L"  " << ENGINE_VI_APPSYSNAME << L" <project.ini> :CENOSabdor" << LineFeed();
+			console << L"  " << ENGINE_VI_APPSYSNAME << L" <project.ini> :CEINOSabcdor" << LineFeed();
 			console << L"Where project.ini is the project configuration file." << LineFeed();
 			console << L"You can optionally use the next build options:" << LineFeed();
 			console << L"  :C - clean build, rebuild any cached files," << LineFeed();
 			console << L"  :E - use shell error mode - open error logs in an external editor," << LineFeed();
+			console << L"  :I - print the information on the available targets," << LineFeed();
 			console << L"  :N - use no logo mode - don't print application logo," << LineFeed();
 			console << L"  :O - use output path only mode - evaluate the output executable's path and print it," << LineFeed();
 			console << L"  :S - use silent mode - supress any output, except output path," << LineFeed();
 			console << L"  :a - specify processor architecture (as the next argument)," << LineFeed();
 			console << L"  :b - build the Runtime cache," << LineFeed();
+			console << L"  :c - specify target configuration (as the next argument)," << LineFeed();
 			console << L"  :d - use debug mode configuration," << LineFeed();
 			console << L"  :o - specify target operating system (as the next argument)," << LineFeed();
 			console << L"  :r - use release mode configuration." << LineFeed();

@@ -1,0 +1,44 @@
+{
+    "configurations": [
+        {
+            "name": "Mac",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/Users/manwe/Documents/GitHub/VirtualUI/EngineRuntime-MacOSX"
+            ],
+            "defines": [
+                "ENGINE_UNIX=1",
+                "ENGINE_MACOSX=1",
+                "ENGINE_X64=1",
+                "ENGINE_SUBSYSTEM_CONSOLE=1",
+                "ENGINE_VI_APPNAME=L\"Engine Runtime builder tool\"",
+                "ENGINE_VI_COMPANY=L\"Engine Software\"",
+                "ENGINE_VI_COPYRIGHT=L\"© Engine Software. 2018-2021\"",
+                "ENGINE_VI_APPSYSNAME=L\"ertbuild\"",
+                "ENGINE_VI_APPIDENT=L\"EngineRuntime.BuilderTool\"",
+                "ENGINE_VI_COMPANYIDENT=L\"EngineSoftware\"",
+                "ENGINE_VI_DESCRIPTION=L\"Builds Engine Runtime and Engine Runtime - based applications.\"",
+                "ENGINE_VI_APPVERSION=L\"2.0.0.49\"",
+                "ENGINE_VI_APPSHORTVERSION=L\"2.0\"",
+                "ENGINE_VI_VERSIONMAJOR=2",
+                "ENGINE_VI_VERSIONMINOR=0",
+                "ENGINE_VI_SUBVERSION=0",
+                "ENGINE_VI_BUILD=49"
+            ],
+            "macFrameworkPath": [
+                "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks"
+            ],
+            "windowsSdkVersion": "",
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "clang-x64",
+            "browse": {
+                "path": [
+                    "/Users/manwe/Documents/GitHub/VirtualUI/EngineRuntime-MacOSX/*"
+                ]
+            }
+        }
+    ],
+    "version": 4
+}

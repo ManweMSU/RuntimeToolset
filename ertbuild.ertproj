@@ -13,6 +13,10 @@ Attachments {
 		From = "ertbuild.ini"
 		To = "ertbuild.ini"
 	}
+	B {
+		From = "bootstrapper.cpp"
+		To = "bootstrapper.cpp"
+	}
 }
 CompileList {
 	A = "ertbuild.cxx"
@@ -26,7 +30,7 @@ VersionInformation {
 	Copyright = "© Engine Software. 2018-2021"
 	Description = "Builds Engine Runtime and Engine Runtime - based applications."
 	InternalName = "ertbuild"
-	Version = "2.0.0.49"
+	Version = "2.0.0.51"
 }
 
 "-MacOSX" { OutputLocation = "" }

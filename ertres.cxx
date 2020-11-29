@@ -32,6 +32,7 @@ struct {
 	int file_icon_counter = 0;
 	bool property_disable_hidpi = false;
 	bool property_disable_dock_icon = false;
+	bool property_needs_root_elevation = false;
 	string resource_manifest_file;
 } res_state;
 
@@ -406,6 +407,7 @@ int Main(void)
 			}
 			res_state.property_disable_hidpi = state.project->GetValueBoolean(L"NoHiDPI");
 			res_state.property_disable_dock_icon = state.project->GetValueBoolean(L"NoDockIcon");
+			res_state.property_needs_root_elevation = state.project->GetValueBoolean(L"NeedsElevation");
 			auto app_icon_path = state.project->GetValueString(L"ApplicationIcon");
 			if (app_icon_path.Length()) {
 				app_icon_path = ExpandPath(app_icon_path, state.project_root_path);

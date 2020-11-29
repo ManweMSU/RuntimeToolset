@@ -34,6 +34,10 @@ struct {
 	bool property_disable_dock_icon = false;
 	bool property_needs_root_elevation = false;
 	string resource_manifest_file;
+	string resource_script_file;
+	string resource_object_file;
+	string resource_object_file_log;
+	string resource_file_formats_file;
 } res_state;
 
 SafePointer<RegistryNode> configuration;
@@ -219,6 +223,174 @@ int ExtractFileFormats(Console & console)
 		}
 	}
 	return ERTBT_SUCCESS;
+}
+
+void GenerateApplicationManifest(const string & at, Console & console)
+{
+	if (!state.clean) {
+		try {
+			FileStream out(at, AccessRead, OpenExisting);
+			auto out_time = IO::DateTime::GetFileAlterTime(out.Handle());
+			if (out_time > state.project_time) return;
+		} catch (...) {}
+	}
+	if (!state.silent) console << L"Writing manifest file " << TextColor(Console::ColorCyan) << IO::Path::GetFileName(at) << TextColorDefault() << L"...";
+	try {
+		FileStream man_stream(at, AccessWrite, CreateAlways);
+		TextWriter man(&man_stream, Encoding::UTF8);
+		man.WriteLine(L"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>");
+		man.WriteLine(L"<assembly xmlns=\"urn:schemas-microsoft-com:asm.v1\" manifestVersion=\"1.0\">");
+		man.WriteLine(L"<assemblyIdentity version=\"" + string(state.version_information.VersionMajor) + L"." + string(state.version_information.VersionMinor) + L"." +
+			string(state.version_information.Subversion) + L"." + string(state.version_information.Build) + L"\" processorArchitecture=\"*\" name=\"" +
+			EscapeStringXml(state.version_information.CompanyIdentifier) + L"." + EscapeStringXml(state.version_information.ApplicationIdentifier) +
+			L"\" type=\"win32\"/>");
+		man.WriteLine(L"<description>" + EscapeStringXml(state.version_information.ApplicationDescription) + L"</description>");
+		// Common Controls 6.0 support
+		man.WriteLine(L"<dependency><dependentAssembly>");
+		man.WriteLine(L"\t<assemblyIdentity type=\"win32\" name=\"Microsoft.Windows.Common-Controls\" version=\"6.0.0.0\" processorArchitecture=\"*\" "
+			L"publicKeyToken=\"6595b64144ccf1df\" language=\"*\"/>");
+		man.WriteLine(L"</dependentAssembly></dependency>");
+		// Make application DPI-aware, enable very long paths
+		man.WriteLine(L"<application xmlns=\"urn:schemas-microsoft-com:asm.v3\">");
+		if (!res_state.property_disable_hidpi) {
+			man.WriteLine(L"\t<windowsSettings>");
+			man.WriteLine(L"\t\t<dpiAware xmlns=\"http://schemas.microsoft.com/SMI/2005/WindowsSettings\">true</dpiAware>");
+			man.WriteLine(L"\t</windowsSettings>");
+		}
+		man.WriteLine(L"\t<windowsSettings xmlns:ws2=\"http://schemas.microsoft.com/SMI/2016/WindowsSettings\">");
+		man.WriteLine(L"\t\t<ws2:longPathAware>true</ws2:longPathAware>");
+		man.WriteLine(L"\t</windowsSettings>");
+		man.WriteLine(L"</application>");
+		// UAC Execution level
+		man.WriteLine(L"<trustInfo xmlns=\"urn:schemas-microsoft-com:asm.v2\"><security><requestedPrivileges>");
+		if (res_state.property_needs_root_elevation) {
+			man.WriteLine(L"\t<requestedExecutionLevel level=\"requireAdministrator\" uiAccess=\"FALSE\"></requestedExecutionLevel>");
+		} else {
+			man.WriteLine(L"\t<requestedExecutionLevel level=\"asInvoker\" uiAccess=\"FALSE\"></requestedExecutionLevel>");
+		}
+		man.WriteLine(L"</requestedPrivileges></security></trustInfo>");
+		// Finilize
+		man.WriteLine(L"</assembly>");
+	} catch (...) {
+		if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
+		throw;
+	}
+	if (!state.silent) console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
+}
+void GenerateResourceScript(const string & at, Console & console)
+{
+	if (!state.clean) {
+		try {
+			FileStream out(at, AccessRead, OpenExisting);
+			auto out_time = IO::DateTime::GetFileAlterTime(out.Handle());
+			if (out_time > state.project_time) return;
+		} catch (...) {}
+	}
+	if (!state.silent) console << L"Writing resource script file " << TextColor(Console::ColorCyan) << IO::Path::GetFileName(at) << TextColorDefault() << L"...";
+	try {
+		FileStream script_stream(at, AccessWrite, CreateAlways);
+		TextWriter script(&script_stream, Encoding::UTF16);
+		script.WriteEncodingSignature();
+		script.WriteLine(L"#include <Windows.h>");
+		script.LineFeed();
+		script.WriteLine(L"CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST \"" + EscapeString(res_state.resource_manifest_file) + L"\"");
+		script.LineFeed();
+		if (res_state.application_icon) script.WriteLine(L"1 ICON \"" + EscapeString(res_state.application_icon->ConvertedPath) + L"\"");
+		if (res_state.file_formats.Length()) {
+			int index = 2;
+			for (auto & ff : res_state.file_formats) if (ff.Icon) {
+				script.WriteLine(string(index) + L" ICON \"" + EscapeString(ff.Icon->ConvertedPath) + L"\"");
+				index++;
+			}
+		}
+		if (res_state.icon_database.Length()) script.LineFeed();
+		if (res_state.resources.Length()) {
+			for (auto & r : res_state.resources) {
+				auto inner_name = r.Locale.Length() ? (r.Name + L"-" + r.Locale) : r.Name;
+				script.WriteLine(inner_name + L" RCDATA \"" + EscapeString(r.SourcePath) + L"\"");
+			}
+			script.LineFeed();
+		}
+		if (state.version_information.ApplicationName.Length()) {
+			auto is_library = configuration->GetValueBoolean(L"Library");
+			script.WriteLine(L"1 VERSIONINFO");
+			script.WriteLine(L"FILEVERSION " + string(state.version_information.VersionMajor) + L", " + string(state.version_information.VersionMinor) + L", " +
+				string(state.version_information.Subversion) + L", " + string(state.version_information.Build));
+			script.WriteLine(L"PRODUCTVERSION " + string(state.version_information.VersionMajor) + L", " + string(state.version_information.VersionMinor) + L", " +
+				string(state.version_information.Subversion) + L", " + string(state.version_information.Build));
+			script.WriteLine(L"FILEFLAGSMASK 0x3fL");
+			script.WriteLine(L"FILEFLAGS 0x0L");
+			script.WriteLine(L"FILEOS VOS_NT_WINDOWS32");
+			if (is_library) {
+				script.WriteLine(L"FILETYPE VFT_DLL");
+			} else {
+				script.WriteLine(L"FILETYPE VFT_APP");
+			}
+			script.WriteLine(L"FILESUBTYPE VFT2_UNKNOWN");
+			script.WriteLine(L"BEGIN");
+			script.WriteLine(L"\tBLOCK \"StringFileInfo\"");
+			script.WriteLine(L"\tBEGIN");
+			script.WriteLine(L"\t\tBLOCK \"040004b0\"");
+			script.WriteLine(L"\t\tBEGIN");
+			if (state.version_information.CompanyName.Length()) script.WriteLine(L"\t\t\tVALUE \"CompanyName\", \"" + EscapeString(state.version_information.CompanyName) + L"\"");
+			script.WriteLine(L"\t\t\tVALUE \"FileDescription\", \"" + EscapeString(state.version_information.ApplicationName) + L"\"");
+			script.WriteLine(L"\t\t\tVALUE \"FileVersion\", \"" + string(state.version_information.VersionMajor) + L"." + string(state.version_information.VersionMinor) + L"\"");
+			script.WriteLine(L"\t\t\tVALUE \"InternalName\", \"" + EscapeString(state.version_information.InternalName) + L"\"");
+			if (state.version_information.Copyright.Length()) script.WriteLine(L"\t\t\tVALUE \"LegalCopyright\", \"" + EscapeString(state.version_information.Copyright) + L"\"");
+			if (is_library) {
+				script.WriteLine(L"\t\t\tVALUE \"OriginalFilename\", \"" + EscapeString(state.version_information.InternalName) + L".dll\"");
+			} else {
+				script.WriteLine(L"\t\t\tVALUE \"OriginalFilename\", \"" + EscapeString(state.version_information.InternalName) + L".exe\"");
+			}
+			script.WriteLine(L"\t\t\tVALUE \"ProductName\", \"" + EscapeString(state.version_information.ApplicationName) + L"\"");
+			script.WriteLine(L"\t\t\tVALUE \"ProductVersion\", \"" + string(state.version_information.VersionMajor) + L"." + string(state.version_information.VersionMinor) + L"\"");
+			script.WriteLine(L"\t\tEND");
+			script.WriteLine(L"\tEND");
+			script.WriteLine(L"\tBLOCK \"VarFileInfo\"");
+			script.WriteLine(L"\tBEGIN");
+			script.WriteLine(L"\t\tVALUE \"Translation\", 0x400, 1200");
+			script.WriteLine(L"\tEND");
+			script.WriteLine(L"END");
+		}
+	} catch (...) {
+		if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
+		throw;
+	}
+	if (!state.silent) console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
+}
+void GenerateFileFormatsManifest(const string & at, Console & console)
+{
+	if (!state.clean) {
+		try {
+			FileStream out(at, AccessRead, OpenExisting);
+			auto out_time = IO::DateTime::GetFileAlterTime(out.Handle());
+			if (out_time > state.project_time) return;
+		} catch (...) {}
+	}
+	if (!state.silent) console << L"Writing file formats manifest " << TextColor(Console::ColorCyan) << IO::Path::GetFileName(at) << TextColorDefault() << L"...";
+	try {
+		SafePointer<Registry> manifest = CreateRegistry();
+		for (auto & ff : res_state.file_formats) {
+			auto name = ff.Extension.LowerCase();
+			if (ff.IsProtocol) name += L":";
+			manifest->CreateNode(name);
+			SafePointer<RegistryNode> fn = manifest->OpenNode(name);
+			fn->CreateValue(L"Description", RegistryValueType::String);
+			fn->SetValue(L"Description", ff.Description);
+			if (!ff.IsProtocol) {
+				fn->CreateValue(L"IconIndex", RegistryValueType::Integer);
+				fn->SetValue(L"IconIndex", ff.Icon ? ff.Icon->Reference.ToInt32() : -1);
+				fn->CreateValue(L"CanCreate", RegistryValueType::Boolean);
+				fn->SetValue(L"CanCreate", ff.CanCreate);
+			}
+		}
+		FileStream manifest_stream(at, AccessReadWrite, CreateAlways);
+		RegistryToText(manifest, &manifest_stream, Encoding::UTF8);
+	} catch (...) {
+		if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
+		throw;
+	}
+	if (!state.silent) console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
 }
 
 void GeneratePropertyList(const string & at, Console & console)
@@ -419,23 +591,19 @@ int Main(void)
 			error = ExtractFileFormats(console);
 			if (error) return error;
 			if (res_state.mode == ResourceMode::Windows) {
-				// TODO: GENERATE RC
-				// TODO: COMPILE RES [WINDOWS ONLY]
-				// TODO: CREATE FORMATS MANIFEST FILE [WINDOWS ONLY]
+				res_state.resource_manifest_file = IO::ExpandPath(state.project_object_path + L"/" + state.project_output_name + L".manifest");
+				res_state.resource_script_file = IO::ExpandPath(state.project_object_path + L"/" + state.project_output_name + L".rc");
+				res_state.resource_object_file = IO::ExpandPath(state.project_object_path + L"/" + state.project_output_name + L".res");
+				res_state.resource_object_file_log = IO::ExpandPath(state.project_object_path + L"/" + state.project_output_name + L".log");
+				res_state.resource_file_formats_file = IO::ExpandPath(state.project_object_path + L"/" + state.project_output_name + L".formats.ini");
+				GenerateApplicationManifest(res_state.resource_manifest_file, console);
+				GenerateResourceScript(res_state.resource_script_file, console);
+				if (res_state.file_formats.Length()) GenerateFileFormatsManifest(res_state.resource_file_formats_file, console);
 
-//                 string manifest = args->ElementAt(2) + L"/" + IO::Path::GetFileNameWithoutExtension(args->ElementAt(1)) + L".manifest";
-//                 if (!asm_manifest(manifest, console)) return 1;
-//                 for (int i = 0; i < formats.Length(); i++) icons << IO::Path::GetFileName(formats[i].Icon);
-//                 string rc = args->ElementAt(2) + L"/" + IO::Path::GetFileNameWithoutExtension(args->ElementAt(1)) + L".rc";
-//                 manifest = IO::Path::GetFileName(manifest);
-// 				bool is_lib = (string::CompareIgnoreCase(prj_cfg->GetValueString(L"Subsystem"), L"library") == 0);
-//                 if (!asm_resscript(manifest, icons, app_icon, rc, is_lib, console)) return 1;
+				// TODO: COMPILE RES [WINDOWS ONLY]
 //                 string res = args->ElementAt(2) + L"/" + IO::Path::GetFileNameWithoutExtension(args->ElementAt(1)) + L".res";
 //                 string res_log = args->ElementAt(2) + L"/" + IO::Path::GetFileNameWithoutExtension(args->ElementAt(1)) + L".log";
 //                 if (!compile_resource(rc, res, res_log, console)) return 1;
-//                 if (formats.Length()) {
-//                     if (!asm_format_manifest(args->ElementAt(2) + L"/" + IO::Path::GetFileNameWithoutExtension(args->ElementAt(1)) + L".formats.ini", console)) return 1;
-//                 }
 			} else if (res_state.mode == ResourceMode::MacOSX) {
 				res_state.resource_manifest_file = IO::ExpandPath(state.project_object_path + L"/" + state.project_output_name + L".plist");
 				GeneratePropertyList(res_state.resource_manifest_file, console);
@@ -468,6 +636,29 @@ int Main(void)
 // bool compile_resource(const string & rc, const string & res, const string & log, ITextWriter & console)
 // {
 //     try {
+//         Time max_time = 0;
+//         Time rc_time = 0;
+//         string wd = IO::Path::GetDirectory(rc) + L"/";
+//         try {
+//             FileStream date(wd + manifest, AccessRead, OpenExisting);
+//             FileStream rcs(wd + rc, AccessRead, OpenExisting);
+//             max_time = IO::DateTime::GetFileAlterTime(date.Handle());
+//             for (int i = 0; i < icons.Length(); i++) {
+//                 FileStream icon(wd + icons[i], AccessRead, OpenExisting);
+//                 Time it = IO::DateTime::GetFileAlterTime(icon.Handle());
+//                 if (it > max_time) max_time = it;
+//             }
+//             for (int i = 0; i < reslist.Length(); i++) {
+//                 FileStream res(reslist[i].SourcePath, AccessRead, OpenExisting);
+//                 Time rt = IO::DateTime::GetFileAlterTime(res.Handle());
+//                 if (rt > max_time) max_time = rt;
+//             }
+//             if (prj_time > max_time) max_time = prj_time;
+//             rc_time = IO::DateTime::GetFileAlterTime(rcs.Handle());
+//         }
+//         catch (...) {}
+//         if (max_time < rc_time && !clean) return true;
+//         !----------------------------------
 //         Time src_time = 0;
 //         Time out_time = 0;
 //         try {
@@ -512,187 +703,6 @@ int Main(void)
 //             else Shell::OpenFile(log);
 //             return false;
 //         }
-//         console << L"Succeed" << IO::NewLineChar;
-//     }
-//     catch (...) { return false; }
-//     return true;
-// }
-// bool asm_resscript(const string & manifest, const Array<string> & icons, const string & app_icon, const string & rc, bool is_lib, ITextWriter & console)
-// {
-//     try {
-//         Time max_time = 0;
-//         Time rc_time = 0;
-//         string wd = IO::Path::GetDirectory(rc) + L"/";
-//         try {
-//             FileStream date(wd + manifest, AccessRead, OpenExisting);
-//             FileStream rcs(wd + rc, AccessRead, OpenExisting);
-//             max_time = IO::DateTime::GetFileAlterTime(date.Handle());
-//             for (int i = 0; i < icons.Length(); i++) {
-//                 FileStream icon(wd + icons[i], AccessRead, OpenExisting);
-//                 Time it = IO::DateTime::GetFileAlterTime(icon.Handle());
-//                 if (it > max_time) max_time = it;
-//             }
-//             for (int i = 0; i < reslist.Length(); i++) {
-//                 FileStream res(reslist[i].SourcePath, AccessRead, OpenExisting);
-//                 Time rt = IO::DateTime::GetFileAlterTime(res.Handle());
-//                 if (rt > max_time) max_time = rt;
-//             }
-//             if (prj_time > max_time) max_time = prj_time;
-//             rc_time = IO::DateTime::GetFileAlterTime(rcs.Handle());
-//         }
-//         catch (...) {}
-//         if (max_time < rc_time && !clean) return true;
-//         console << L"Writing resource script file " << IO::Path::GetFileName(rc) << L"...";
-//         try {
-//             FileStream rc_file(rc, AccessWrite, CreateAlways);
-//             TextWriter script(&rc_file, Encoding::UTF16);
-//             script.WriteEncodingSignature();
-//             script << L"#include <Windows.h>" << IO::NewLineChar << IO::NewLineChar;
-//             script << L"CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST \"" + manifest + L"\"" << IO::NewLineChar << IO::NewLineChar;
-// 			if (app_icon.Length()) {
-// 				script << string(1) + L" ICON \"" + IO::Path::GetFileName(app_icon) + L"\"" << IO::NewLineChar;
-// 			}
-// 			for (int i = 0; i < formats.Length(); i++) if (formats[i].UniqueIcon) {
-//                 script << string(formats[i].UniqueIndex + 1) + L" ICON \"" + IO::Path::GetFileName(formats[i].Icon) + L"\"" << IO::NewLineChar;
-// 			}
-//             if (icons.Length()) script << IO::NewLineChar;
-//             if (reslist.Length()) {
-//                 for (int i = 0; i < reslist.Length(); i++) {
-//                     string inner_name = reslist[i].Locale.Length() ? (reslist[i].Name + L"-" + reslist[i].Locale) : reslist[i].Name;
-//                     script << L"" + inner_name + L" RCDATA \"" + make_lexem(reslist[i].SourcePath) + L"\"" << IO::NewLineChar;
-//                 }
-//                 script << IO::NewLineChar;
-//             }
-//             if (prj_ver.AppName.Length()) {
-//                 script << L"1 VERSIONINFO" << IO::NewLineChar;
-//                 script << L"FILEVERSION " + string(prj_ver.VersionMajor) + L", " + string(prj_ver.VersionMinor) + L", " +
-//                     string(prj_ver.Subversion) + L", " + string(prj_ver.Build) << IO::NewLineChar;
-//                 script << L"PRODUCTVERSION " + string(prj_ver.VersionMajor) + L", " + string(prj_ver.VersionMinor) + L", " +
-//                     string(prj_ver.Subversion) + L", " + string(prj_ver.Build) << IO::NewLineChar;
-//                 script << L"FILEFLAGSMASK 0x3fL" << IO::NewLineChar;
-//                 script << L"FILEFLAGS 0x0L" << IO::NewLineChar;
-//                 script << L"FILEOS VOS_NT_WINDOWS32" << IO::NewLineChar;
-// 				if (is_lib) {
-// 					script << L"FILETYPE VFT_DLL" << IO::NewLineChar;
-// 				} else {
-//                 	script << L"FILETYPE VFT_APP" << IO::NewLineChar;
-// 				}
-//                 script << L"FILESUBTYPE VFT2_UNKNOWN" << IO::NewLineChar;
-//                 script << L"BEGIN" << IO::NewLineChar;
-//                 script << L"\tBLOCK \"StringFileInfo\"" << IO::NewLineChar;
-//                 script << L"\tBEGIN" << IO::NewLineChar;
-//                 script << L"\t\tBLOCK \"040004b0\"" << IO::NewLineChar;
-//                 script << L"\t\tBEGIN" << IO::NewLineChar;
-//                 if (prj_ver.CompanyName.Length()) script << L"\t\t\tVALUE \"CompanyName\", \"" + make_lexem(prj_ver.CompanyName) + L"\"" << IO::NewLineChar;
-//                 script << L"\t\t\tVALUE \"FileDescription\", \"" + make_lexem(prj_ver.AppName) + L"\"" << IO::NewLineChar;
-//                 script << L"\t\t\tVALUE \"FileVersion\", \"" + string(prj_ver.VersionMajor) + L"." + string(prj_ver.VersionMinor) + L"\"" << IO::NewLineChar;
-//                 script << L"\t\t\tVALUE \"InternalName\", \"" + make_lexem(prj_ver.InternalName) + L"\"" << IO::NewLineChar;
-//                 if (prj_ver.Copyright.Length()) script << L"\t\t\tVALUE \"LegalCopyright\", \"" + make_lexem(prj_ver.Copyright) + L"\"" << IO::NewLineChar;
-//                 script << L"\t\t\tVALUE \"OriginalFilename\", \"" + make_lexem(prj_ver.InternalName) + L".exe\"" << IO::NewLineChar;
-//                 script << L"\t\t\tVALUE \"ProductName\", \"" + make_lexem(prj_ver.AppName) + L"\"" << IO::NewLineChar;
-//                 script << L"\t\t\tVALUE \"ProductVersion\", \"" + string(prj_ver.VersionMajor) + L"." + string(prj_ver.VersionMinor) + L"\"" << IO::NewLineChar;
-//                 script << L"\t\tEND" << IO::NewLineChar;
-//                 script << L"\tEND" << IO::NewLineChar;
-//                 script << L"\tBLOCK \"VarFileInfo\"" << IO::NewLineChar;
-//                 script << L"\tBEGIN" << IO::NewLineChar;
-//                 script << L"\t\tVALUE \"Translation\", 0x400, 1200" << IO::NewLineChar;
-//                 script << L"\tEND" << IO::NewLineChar;
-//                 script << L"END";
-//             }
-//         }
-//         catch (...) { console << L"Failed" << IO::NewLineChar; throw; }
-//         console << L"Succeed" << IO::NewLineChar;
-//     }
-//     catch (...) { return false; }
-//     return true;
-// }
-// bool asm_manifest(const string & output, ITextWriter & console)
-// {
-//     try {
-//         Time man_time = 0;
-//         try {
-//             FileStream date(output, AccessRead, OpenExisting);
-//             man_time = IO::DateTime::GetFileAlterTime(date.Handle());
-//         }
-//         catch (...) {}
-//         if (prj_time < man_time && !clean) return true;
-//         console << L"Writing manifest file " << IO::Path::GetFileName(output) << L"...";
-//         try {
-//             FileStream man_file(output, AccessWrite, CreateAlways);
-//             TextWriter manifest(&man_file, Encoding::UTF8);
-//             manifest << L"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" << IO::NewLineChar;
-//             manifest << L"<assembly xmlns=\"urn:schemas-microsoft-com:asm.v1\" manifestVersion=\"1.0\">" << IO::NewLineChar;
-//             manifest << L"<assemblyIdentity version=\"" +
-//                 string(prj_ver.VersionMajor) + L"." + string(prj_ver.VersionMinor) + L"." + string(prj_ver.Subversion) + L"." + string(prj_ver.Build) +
-//                 L"\" processorArchitecture=\"*\" name=\"" +
-//                 prj_ver.ComIdent + L"." + prj_ver.AppIdent +
-//                 L"\" type=\"win32\"/>" << IO::NewLineChar;
-//             manifest << L"<description>" + prj_ver.Description + L"</description>" << IO::NewLineChar;
-//             // Common Controls 6.0 support
-//             manifest << L"<dependency><dependentAssembly>" << IO::NewLineChar;
-//             manifest << L"\t<assemblyIdentity type=\"win32\" name=\"Microsoft.Windows.Common-Controls\" version=\"6.0.0.0\" processorArchitecture=\"*\" "
-//                 L"publicKeyToken=\"6595b64144ccf1df\" language=\"*\"/>" << IO::NewLineChar;
-//             manifest << L"</dependentAssembly></dependency>" << IO::NewLineChar;
-//             // Make application DPI-aware, enable very long paths
-//             manifest << L"<application xmlns=\"urn:schemas-microsoft-com:asm.v3\">" << IO::NewLineChar;
-// 			if (!disable_hi_dpi) {
-// 				manifest << L"\t<windowsSettings>" << IO::NewLineChar;
-// 				manifest << L"\t\t<dpiAware xmlns=\"http://schemas.microsoft.com/SMI/2005/WindowsSettings\">true</dpiAware>" << IO::NewLineChar;
-// 				manifest << L"\t</windowsSettings>" << IO::NewLineChar;
-// 			}
-//             manifest << L"\t<windowsSettings xmlns:ws2=\"http://schemas.microsoft.com/SMI/2016/WindowsSettings\">" << IO::NewLineChar;
-//             manifest << L"\t\t<ws2:longPathAware>true</ws2:longPathAware>" << IO::NewLineChar;
-//             manifest << L"\t</windowsSettings>" << IO::NewLineChar;
-//             manifest << L"</application>" << IO::NewLineChar;
-//             // UAC Execution level
-//             manifest << L"<trustInfo xmlns=\"urn:schemas-microsoft-com:asm.v2\"><security><requestedPrivileges>" << IO::NewLineChar;
-//             manifest << L"\t<requestedExecutionLevel level=\"asInvoker\" uiAccess=\"FALSE\"></requestedExecutionLevel>" << IO::NewLineChar;
-//             manifest << L"</requestedPrivileges></security></trustInfo>" << IO::NewLineChar;
-//             // Finilize
-//             manifest << L"</assembly>";
-//         }
-//         catch (...) { console << L"Failed" << IO::NewLineChar; throw; }
-//         console << L"Succeed" << IO::NewLineChar;
-//     }
-//     catch (...) { return false; }
-//     return true;
-// }
-// bool asm_format_manifest(const string & name, ITextWriter & console)
-// {
-//     try {
-//         Time man_time = 0;
-//         try {
-//             FileStream date(name, AccessRead, OpenExisting);
-//             man_time = IO::DateTime::GetFileAlterTime(date.Handle());
-//         }
-//         catch (...) {}
-//         if (prj_time < man_time && !clean) return true;
-//         console << L"Writing file formats manifest " << IO::Path::GetFileName(name) << L"...";
-//         try {
-//             SafePointer<Registry> man = CreateRegistry();
-//             for (int i = 0; i < formats.Length(); i++) {
-//                 string ext = formats[i].Extension.LowerCase();
-// 				if (formats[i].IsProtocol) ext += L":";
-//                 man->CreateNode(ext);
-//                 SafePointer<RegistryNode> fmt = man->OpenNode(ext);
-// 				if (formats[i].IsProtocol) {
-// 					fmt->CreateValue(L"Description", RegistryValueType::String);
-// 					fmt->SetValue(L"Description", formats[i].Description);
-// 				} else {
-// 					fmt->CreateValue(L"Description", RegistryValueType::String);
-// 					fmt->SetValue(L"Description", formats[i].Description);
-// 					fmt->CreateValue(L"IconIndex", RegistryValueType::Integer);
-// 					fmt->SetValue(L"IconIndex", formats[i].UniqueIndex);
-// 					fmt->CreateValue(L"CanCreate", RegistryValueType::Boolean);
-// 					fmt->SetValue(L"CanCreate", formats[i].CanCreate);
-// 				}
-//             }
-//             FileStream man_file(name, AccessReadWrite, CreateAlways);
-//             TextWriter writer(&man_file, Encoding::UTF8);
-//             writer.WriteEncodingSignature();
-//             RegistryToText(man, &writer);
-//         }
-//         catch (...) { console << L"Failed" << IO::NewLineChar; throw; }
 //         console << L"Succeed" << IO::NewLineChar;
 //     }
 //     catch (...) { return false; }

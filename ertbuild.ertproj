@@ -1,0 +1,32 @@
+﻿CompileAll = false
+CompileAt = "."
+OutputLocation = "./_build"
+OutputLocationDebug = "./_build_debug"
+OutputLocationMacOSX64 = "macosx"
+OutputLocationWindows32 = "win32"
+OutputLocationWindows64 = "win64"
+OutputName = "ertbuild"
+Subsystem = "Console"
+UseVersionDefines = true
+Attachments {
+	A {
+		From = "ertbuild.ini"
+		To = "ertbuild.ini"
+	}
+}
+CompileList {
+	A = "ertbuild.cxx"
+	B = "ertcom.cxx"
+}
+VersionInformation {
+	ApplicationIdentifier = "EngineRuntime.BuilderTool"
+	ApplicationName = "Engine Runtime builder tool"
+	CompanyIdentifier = "EngineSoftware"
+	CompanyName = "Engine Software"
+	Copyright = "© Engine Software. 2018-2021"
+	Description = "Builds Engine Runtime and Engine Runtime - based applications."
+	InternalName = "ertbuild"
+	Version = "2.0.0.49"
+}
+
+"-MacOSX" { OutputLocation = "" }

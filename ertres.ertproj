@@ -1,0 +1,17 @@
+﻿CompileList {
+    A = "ertres.cxx"
+	B = "ertcom.cxx"
+}
+OutputName = "ertres"
+Subsystem = "Console"
+UseVersionDefines = true
+VersionInformation {
+    ApplicationName = "Engine Runtime resource tool"
+    CompanyName = "Engine Software"
+    Copyright = "© Engine Software. 2018-2021"
+    Version = "2.0.0.24"
+    InternalName = "ertres"
+    ApplicationIdentifier = "EngineRuntime.ResourceTool"
+    CompanyIdentifier = "EngineSoftware"
+    Description = "Generates platform-dependent resources for Engine Runtime - based applications."
+}

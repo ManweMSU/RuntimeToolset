@@ -15,6 +15,7 @@ using namespace Engine::Storage;
 #define ERTBT_ATTACHMENT_FAILED		5
 #define ERTBT_INVALID_INVOKATION	6
 #define ERTBT_INVOKATION_FAILED		7
+#define ERTBT_UNSUPPORTED_TRIPLE	9
 #define ERTBT_INVALID_COMPILER_SET	10
 #define ERTBT_COMPILATION_FAILED	11
 #define ERTBT_INVALID_LINKER_SET	12
@@ -30,6 +31,8 @@ using namespace Engine::Storage;
 #define ERTBT_INVALID_RESOURCE		31
 #define ERTBT_INVALID_FORMAT_ALIAS	32
 #define ERTBT_BUNDLE_BUILD_ERROR	33
+#define ERTBT_INVALID_RC_SET		34
+#define ERTBT_RC_FAILED				35
 
 enum class BuildTargetClass { Architecture, OperatingSystem, Configuration, Subsystem };
 
@@ -100,6 +103,7 @@ extern SafePointer<Registry> tool_config;
 extern SafePointer<Registry> local_config;
 
 string EscapeString(const string & input);
+string EscapeStringRc(const string & input);
 string EscapeStringXml(const string & input);
 string ExpandPath(const string & path, const string & relative_to);
 void ClearDirectory(const string & path);
@@ -109,7 +113,7 @@ bool CopyFile(const string & from, const string & to);
 
 int ConfigurationInitialize(Console & console);
 int SelectTarget(const string & name, BuildTargetClass cls, Console & console);
-void MakeLocalConfiguration(Console & console);
+int MakeLocalConfiguration(Console & console);
 int LoadProject(Console & console);
 void ProjectPostConfig(void);
 bool IsValidIdentifier(const string & value);

@@ -293,13 +293,13 @@ void GenerateResourceScript(const string & at, Console & console)
 		script.WriteEncodingSignature();
 		script.WriteLine(L"#include <Windows.h>");
 		script.LineFeed();
-		script.WriteLine(L"CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST \"" + EscapeString(res_state.resource_manifest_file) + L"\"");
+		script.WriteLine(L"CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST \"" + EscapeStringRc(res_state.resource_manifest_file) + L"\"");
 		script.LineFeed();
-		if (res_state.application_icon) script.WriteLine(L"1 ICON \"" + EscapeString(res_state.application_icon->ConvertedPath) + L"\"");
+		if (res_state.application_icon) script.WriteLine(L"1 ICON \"" + EscapeStringRc(res_state.application_icon->ConvertedPath) + L"\"");
 		if (res_state.file_formats.Length()) {
 			int index = 2;
 			for (auto & ff : res_state.file_formats) if (ff.Icon) {
-				script.WriteLine(string(index) + L" ICON \"" + EscapeString(ff.Icon->ConvertedPath) + L"\"");
+				script.WriteLine(string(index) + L" ICON \"" + EscapeStringRc(ff.Icon->ConvertedPath) + L"\"");
 				index++;
 			}
 		}
@@ -307,7 +307,7 @@ void GenerateResourceScript(const string & at, Console & console)
 		if (res_state.resources.Length()) {
 			for (auto & r : res_state.resources) {
 				auto inner_name = r.Locale.Length() ? (r.Name + L"-" + r.Locale) : r.Name;
-				script.WriteLine(inner_name + L" RCDATA \"" + EscapeString(r.SourcePath) + L"\"");
+				script.WriteLine(inner_name + L" RCDATA \"" + EscapeStringRc(r.SourcePath) + L"\"");
 			}
 			script.LineFeed();
 		}
@@ -332,17 +332,17 @@ void GenerateResourceScript(const string & at, Console & console)
 			script.WriteLine(L"\tBEGIN");
 			script.WriteLine(L"\t\tBLOCK \"040004b0\"");
 			script.WriteLine(L"\t\tBEGIN");
-			if (state.version_information.CompanyName.Length()) script.WriteLine(L"\t\t\tVALUE \"CompanyName\", \"" + EscapeString(state.version_information.CompanyName) + L"\"");
-			script.WriteLine(L"\t\t\tVALUE \"FileDescription\", \"" + EscapeString(state.version_information.ApplicationName) + L"\"");
+			if (state.version_information.CompanyName.Length()) script.WriteLine(L"\t\t\tVALUE \"CompanyName\", \"" + EscapeStringRc(state.version_information.CompanyName) + L"\"");
+			script.WriteLine(L"\t\t\tVALUE \"FileDescription\", \"" + EscapeStringRc(state.version_information.ApplicationName) + L"\"");
 			script.WriteLine(L"\t\t\tVALUE \"FileVersion\", \"" + string(state.version_information.VersionMajor) + L"." + string(state.version_information.VersionMinor) + L"\"");
-			script.WriteLine(L"\t\t\tVALUE \"InternalName\", \"" + EscapeString(state.version_information.InternalName) + L"\"");
-			if (state.version_information.Copyright.Length()) script.WriteLine(L"\t\t\tVALUE \"LegalCopyright\", \"" + EscapeString(state.version_information.Copyright) + L"\"");
+			script.WriteLine(L"\t\t\tVALUE \"InternalName\", \"" + EscapeStringRc(state.version_information.InternalName) + L"\"");
+			if (state.version_information.Copyright.Length()) script.WriteLine(L"\t\t\tVALUE \"LegalCopyright\", \"" + EscapeStringRc(state.version_information.Copyright) + L"\"");
 			if (is_library) {
-				script.WriteLine(L"\t\t\tVALUE \"OriginalFilename\", \"" + EscapeString(state.version_information.InternalName) + L".dll\"");
+				script.WriteLine(L"\t\t\tVALUE \"OriginalFilename\", \"" + EscapeStringRc(state.version_information.InternalName) + L".dll\"");
 			} else {
-				script.WriteLine(L"\t\t\tVALUE \"OriginalFilename\", \"" + EscapeString(state.version_information.InternalName) + L".exe\"");
+				script.WriteLine(L"\t\t\tVALUE \"OriginalFilename\", \"" + EscapeStringRc(state.version_information.InternalName) + L".exe\"");
 			}
-			script.WriteLine(L"\t\t\tVALUE \"ProductName\", \"" + EscapeString(state.version_information.ApplicationName) + L"\"");
+			script.WriteLine(L"\t\t\tVALUE \"ProductName\", \"" + EscapeStringRc(state.version_information.ApplicationName) + L"\"");
 			script.WriteLine(L"\t\t\tVALUE \"ProductVersion\", \"" + string(state.version_information.VersionMajor) + L"." + string(state.version_information.VersionMinor) + L"\"");
 			script.WriteLine(L"\t\tEND");
 			script.WriteLine(L"\tEND");
@@ -391,6 +391,66 @@ void GenerateFileFormatsManifest(const string & at, Console & console)
 		throw;
 	}
 	if (!state.silent) console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
+}
+int CompileResource(const string & source, const string & object, const string & log, Console & console)
+{
+	if (!state.clean) {
+		try {
+			Time max_time = state.project_time;
+			for (auto & i : res_state.icon_database) {
+				FileStream src(i.ConvertedPath, AccessRead, OpenExisting);
+				auto time = IO::DateTime::GetFileAlterTime(src.Handle());
+				if (time > max_time) max_time = time;
+			}
+			for (auto & r : res_state.resources) {
+				FileStream src(r.SourcePath, AccessRead, OpenExisting);
+				auto time = IO::DateTime::GetFileAlterTime(src.Handle());
+				if (time > max_time) max_time = time;
+			}
+			FileStream out(object, AccessRead, OpenExisting);
+			auto out_time = IO::DateTime::GetFileAlterTime(out.Handle());
+			if (out_time > max_time) return ERTBT_SUCCESS;
+		} catch (...) {}
+	}
+	auto oa = configuration->GetValueString(L"Compiler/OutputArgument");
+	auto cc = configuration->GetValueString(L"Compiler/Path");
+	if (!cc.Length()) {
+		if (!state.silent) console << TextColor(Console::ColorRed) << L"No resource compiler set for current configuration." << TextColorDefault() << LineFeed();
+		return ERTBT_INVALID_RC_SET;
+	}
+	if (!state.silent) console << L"Compiling resource script " << TextColor(Console::ColorCyan) << IO::Path::GetFileName(source) << TextColorDefault() << L"...";
+	Array<string> cc_args(0x80);
+	AppendArgumentLine(cc_args, oa, object);
+	SafePointer<RegistryNode> la = configuration->OpenNode(L"Compiler/Arguments");
+	if (la) for (auto & v : la->GetValues()) cc_args << la->GetValueString(v);
+	cc_args << source;
+	handle log_file = IO::CreateFile(log, IO::AccessReadWrite, IO::CreateAlways);
+	IO::SetStandardOutput(log_file);
+	IO::SetStandardError(log_file);
+	IO::CloseFile(log_file);
+	SafePointer<Process> compiler = CreateCommandProcess(cc, &cc_args);
+	if (!compiler) {
+		if (!state.silent) {
+			console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
+			console << TextColor(Console::ColorRed) << FormatString(L"Failed to launch the compiler (%0).", cc) << TextColorDefault() << LineFeed();
+			console << TextColor(Console::ColorRed) << L"You may try \"ertaconf\" to repair." << TextColorDefault() << LineFeed();
+		}
+		return ERTBT_INVALID_RC_SET;
+	}
+	compiler->Wait();
+	if (compiler->GetExitCode()) {
+		if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
+		if (state.shelllog) {
+			IO::SetStandardOutput(state.stdout_clone);
+			IO::SetStandardError(state.stderr_clone);
+			Shell::OpenFile(log);
+		} else PrintError(IO::GetStandardError(), state.stderr_clone);
+		return ERTBT_RC_FAILED;
+	}
+	IO::SetStandardOutput(state.stdout_clone);
+	IO::SetStandardError(state.stderr_clone);
+	if (!state.silent) console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
+	return ERTBT_SUCCESS;
 }
 
 void GeneratePropertyList(const string & at, Console & console)
@@ -562,7 +622,8 @@ int Main(void)
 		if (state.project_file_path.Length()) {
 			error = LoadProject(console);
 			if (error) return error;
-			MakeLocalConfiguration(console);
+			error = MakeLocalConfiguration(console);
+			if (error) return error;
 			error = LoadVersionInformation(console);
 			if (error) return error;
 			ProjectPostConfig();
@@ -594,16 +655,12 @@ int Main(void)
 				res_state.resource_manifest_file = IO::ExpandPath(state.project_object_path + L"/" + state.project_output_name + L".manifest");
 				res_state.resource_script_file = IO::ExpandPath(state.project_object_path + L"/" + state.project_output_name + L".rc");
 				res_state.resource_object_file = IO::ExpandPath(state.project_object_path + L"/" + state.project_output_name + L".res");
-				res_state.resource_object_file_log = IO::ExpandPath(state.project_object_path + L"/" + state.project_output_name + L".log");
+				res_state.resource_object_file_log = IO::ExpandPath(state.project_object_path + L"/" + state.project_output_name + L".rc.log");
 				res_state.resource_file_formats_file = IO::ExpandPath(state.project_object_path + L"/" + state.project_output_name + L".formats.ini");
 				GenerateApplicationManifest(res_state.resource_manifest_file, console);
 				GenerateResourceScript(res_state.resource_script_file, console);
 				if (res_state.file_formats.Length()) GenerateFileFormatsManifest(res_state.resource_file_formats_file, console);
-
-				// TODO: COMPILE RES [WINDOWS ONLY]
-//                 string res = args->ElementAt(2) + L"/" + IO::Path::GetFileNameWithoutExtension(args->ElementAt(1)) + L".res";
-//                 string res_log = args->ElementAt(2) + L"/" + IO::Path::GetFileNameWithoutExtension(args->ElementAt(1)) + L".log";
-//                 if (!compile_resource(rc, res, res_log, console)) return 1;
+				return CompileResource(res_state.resource_script_file, res_state.resource_object_file, res_state.resource_object_file_log, console);
 			} else if (res_state.mode == ResourceMode::MacOSX) {
 				res_state.resource_manifest_file = IO::ExpandPath(state.project_object_path + L"/" + state.project_output_name + L".plist");
 				GeneratePropertyList(res_state.resource_manifest_file, console);
@@ -632,79 +689,3 @@ int Main(void)
 	}
 	return ERTBT_SUCCESS;
 }
-
-// bool compile_resource(const string & rc, const string & res, const string & log, ITextWriter & console)
-// {
-//     try {
-//         Time max_time = 0;
-//         Time rc_time = 0;
-//         string wd = IO::Path::GetDirectory(rc) + L"/";
-//         try {
-//             FileStream date(wd + manifest, AccessRead, OpenExisting);
-//             FileStream rcs(wd + rc, AccessRead, OpenExisting);
-//             max_time = IO::DateTime::GetFileAlterTime(date.Handle());
-//             for (int i = 0; i < icons.Length(); i++) {
-//                 FileStream icon(wd + icons[i], AccessRead, OpenExisting);
-//                 Time it = IO::DateTime::GetFileAlterTime(icon.Handle());
-//                 if (it > max_time) max_time = it;
-//             }
-//             for (int i = 0; i < reslist.Length(); i++) {
-//                 FileStream res(reslist[i].SourcePath, AccessRead, OpenExisting);
-//                 Time rt = IO::DateTime::GetFileAlterTime(res.Handle());
-//                 if (rt > max_time) max_time = rt;
-//             }
-//             if (prj_time > max_time) max_time = prj_time;
-//             rc_time = IO::DateTime::GetFileAlterTime(rcs.Handle());
-//         }
-//         catch (...) {}
-//         if (max_time < rc_time && !clean) return true;
-//         !----------------------------------
-//         Time src_time = 0;
-//         Time out_time = 0;
-//         try {
-//             FileStream src(rc, AccessRead, OpenExisting);
-//             FileStream out(res, AccessRead, OpenExisting);
-//             src_time = IO::DateTime::GetFileAlterTime(src.Handle());
-//             out_time = IO::DateTime::GetFileAlterTime(out.Handle());
-//         }
-//         catch (...) {}
-//         if (src_time < out_time && !clean) return true;
-//         console << L"Compiling resource script " << IO::Path::GetFileName(rc) << L"...";
-//         Array<string> rc_args(0x80);
-//         {
-//             string out_arg = sys_cfg->GetValueString(L"Compiler/OutputArgument");
-//             if (out_arg.FindFirst(L'$') == -1) {
-//                 rc_args << out_arg;
-//                 rc_args << res;
-//             } else rc_args << out_arg.Replace(L'$', res);
-//         }
-//         {
-//             SafePointer<RegistryNode> args_node = sys_cfg->OpenNode(L"Compiler/Arguments");
-//             if (args_node) {
-//                 auto & args_vals = args_node->GetValues();
-//                 for (int i = 0; i < args_vals.Length(); i++) rc_args << args_node->GetValueString(args_vals[i]);
-//             }
-//         }
-//         rc_args << rc;
-//         handle rc_log = IO::CreateFile(log, IO::AccessReadWrite, IO::CreateAlways);
-//         IO::SetStandardOutput(rc_log);
-//         IO::SetStandardError(rc_log);
-//         IO::CloseFile(rc_log);
-//         SafePointer<Process> compiler = CreateCommandProcess(sys_cfg->GetValueString(L"Compiler/Path"), &rc_args);
-//         if (!compiler) {
-//             console << L"Failed" << IO::NewLineChar;
-//             console << L"Failed to launch the compiler (" + sys_cfg->GetValueString(L"Compiler/Path") + L")." << IO::NewLineChar;
-//             return false;
-//         }
-//         compiler->Wait();
-//         if (compiler->GetExitCode()) {
-//             console << L"Failed" << IO::NewLineChar;
-//             if (errlog) print_error(IO::GetStandardError());
-//             else Shell::OpenFile(log);
-//             return false;
-//         }
-//         console << L"Succeed" << IO::NewLineChar;
-//     }
-//     catch (...) { return false; }
-//     return true;
-// }

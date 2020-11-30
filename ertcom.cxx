@@ -37,6 +37,31 @@ string EscapeString(const string & input)
 	}
 	return result.ToString();
 }
+string EscapeStringRc(const string & input)
+{
+	DynamicString result;
+	for (int i = 0; i < input.Length(); i++) {
+		auto c = input[i];
+		if (c < 0x20 || c == L'\\' || c == L'\"') {
+			if (c == L'\\') {
+				result += L"\\\\";
+			} else if (c == L'\"') {
+				result += L"\\\"";
+			} else if (c == L'\n') {
+				result += L"\\n";
+			} else if (c == L'\r') {
+				result += L"\\r";
+			} else if (c == L'\t') {
+				result += L"\\t";
+			} else {
+				result += L"\\" + string(uint(c), L"01234567", 3);
+			}
+		} else {
+			result += c;
+		}
+	}
+	return result.ToString();
+}
 string EscapeStringXml(const string & input)
 {
 	DynamicString result;
@@ -199,7 +224,7 @@ int SelectTarget(const string & name, BuildTargetClass cls, Console & console)
 	if (!state.silent) console << TextColor(Console::ColorRed) << FormatString(L"No %0 with name \"%1\" was found.", cls_name, name) << TextColorDefault() << LineFeed();
 	return ERTBT_UNKNOWN_TARGET;
 }
-void MakeLocalConfiguration(Console & console)
+int MakeLocalConfiguration(Console & console)
 {
 	ObjectArray<RegistryNode> merge(0x10);
 	for (auto & nn : tool_config->GetSubnodes()) {
@@ -219,10 +244,17 @@ void MakeLocalConfiguration(Console & console)
 		SafePointer<RegistryNode> node = CreateMergedNode(merge);
 		local_config = CreateRegistryFromNode(node);
 	} else local_config = CreateRegistry();
-	string local = IO::Path::GetDirectory(IO::GetExecutablePath());
-	state.runtime_source_path = ExpandPath(local_config->GetValueString(L"RuntimePath"), local);
+	auto local = IO::Path::GetDirectory(IO::GetExecutablePath());
+	auto rt_path = local_config->GetValueString(L"RuntimePath");
+	auto obj_path = local_config->GetValueString(L"ObjectPath");
+	if (!rt_path.Length() || !obj_path.Length()) {
+		if (!state.silent) console << TextColor(Console::ColorRed) << L"The selected targets are not supported by current configuration." << TextColorDefault() << LineFeed();
+		return ERTBT_UNSUPPORTED_TRIPLE;
+	}
+	state.runtime_source_path = ExpandPath(rt_path, local);
 	state.runtime_bootstrapper_path = ExpandPath(local_config->GetValueString(L"Bootstrapper"), local);
-	state.runtime_object_path = ExpandPath(local_config->GetValueString(L"ObjectPath"), local);
+	state.runtime_object_path = ExpandPath(obj_path, local);
+	return ERTBT_SUCCESS;
 }
 int LoadProject(Console & console)
 {

@@ -11,6 +11,18 @@
             "cwd": "/Users/manwe/Documents/GitHub/RuntimeToolset/_build_debug/macosx",
             "externalConsole": true,
             "MIMode": "lldb"
+        },
+        {
+            "name": "Run (Windows)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "C:\\Users\\Manwe\\Documents\\GitHub\\RuntimeToolset\\_build_debug\\win32\\ertbuild.exe",
+            "args": [
+            ],
+            "stopAtEntry": false,
+            "cwd": "C:\\Users\\Manwe\\Documents\\GitHub\\RuntimeToolset\\_build_debug\\win32",
+            "externalConsole": true,
+            "MIMode": ""
         }
     ],
     "version": "0.2.0"

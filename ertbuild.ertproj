@@ -34,3 +34,4 @@ VersionInformation {
 }
 
 "-MacOSX" { OutputLocation = "" }
+"-Windows" { OutputLocation = "" }

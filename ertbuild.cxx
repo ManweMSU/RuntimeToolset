@@ -332,7 +332,7 @@ int ParseCommandLine(Console & console)
 }
 void PrintSessionInformation(Console & console)
 {
-	auto obj_name = state.build_cache ? L"Engine Runtime" : IO::Path::GetFileNameWithoutExtension(state.project_file_path);
+	auto obj_name = state.build_cache ? string(L"Engine Runtime") : IO::Path::GetFileNameWithoutExtension(state.project_file_path);
 	console << L"Building " << TextColor(Console::ColorRed) << obj_name << TextColorDefault() <<
 		L" for " << TextColor(Console::ColorMagenta) << state.arch.HumanReadableName << TextColorDefault() <<
 		L" " << TextColor(Console::ColorBlue) << state.os.HumanReadableName << TextColorDefault() <<
@@ -470,13 +470,15 @@ int Main(void)
 		if (state.project_file_path.Length()) {
 			error = LoadProject(console);
 			if (error) return error;
-			MakeLocalConfiguration(console);
+			error = MakeLocalConfiguration(console);
+			if (error) return error;
 			error = LoadVersionInformation(console);
 			if (error) return error;
 			ProjectPostConfig();
 			return BuildProject(console);
 		} else if (state.build_cache) {
-			MakeLocalConfiguration(console);
+			error = MakeLocalConfiguration(console);
+			if (error) return error;
 			return BuildRuntime(console);
 		} else if (!state.silent && !state.print_information) {
 			console << L"Command line syntax:" << LineFeed();

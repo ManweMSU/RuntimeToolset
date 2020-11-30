@@ -38,6 +38,45 @@
                     "/Users/manwe/Documents/GitHub/VirtualUI/EngineRuntime-MacOSX/*"
                 ]
             }
+        },
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "C:/Users/Manwe/AppData/Roaming/Engine Store/install/runtime/Runtime"
+            ],
+            "defines": [
+                "UNICODE=1",
+                "_UNICODE=1",
+                "ENGINE_WINDOWS=1",
+                "ENGINE_X64=1",
+                "ENGINE_SUBSYSTEM_CONSOLE=1",
+                "ENGINE_VI_APPNAME=L\"Engine Runtime builder tool\"",
+                "ENGINE_VI_COMPANY=L\"Engine Software\"",
+                "ENGINE_VI_COPYRIGHT=L\"© Engine Software. 2018-2021\"",
+                "ENGINE_VI_APPSYSNAME=L\"ertbuild\"",
+                "ENGINE_VI_APPIDENT=L\"EngineRuntime.BuilderTool\"",
+                "ENGINE_VI_COMPANYIDENT=L\"EngineSoftware\"",
+                "ENGINE_VI_DESCRIPTION=L\"Builds Engine Runtime and Engine Runtime - based applications.\"",
+                "ENGINE_VI_APPVERSION=L\"2.0.0.51\"",
+                "ENGINE_VI_APPSHORTVERSION=L\"2.0\"",
+                "ENGINE_VI_VERSIONMAJOR=2",
+                "ENGINE_VI_VERSIONMINOR=0",
+                "ENGINE_VI_SUBVERSION=0",
+                "ENGINE_VI_BUILD=51"
+            ],
+            "macFrameworkPath": [
+            ],
+            "windowsSdkVersion": "10.0.18362.0",
+            "compilerPath": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Enterprise\\VC\\Tools\\MSVC\\14.28.29333\\bin\\Hostx64\\x86\\cl.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "msvc-x64",
+            "browse": {
+                "path": [
+                    "C:/Users/Manwe/AppData/Roaming/Engine Store/install/runtime/Runtime/*"
+                ]
+            }
         }
     ],
     "version": 4

@@ -1,0 +1,16 @@
+﻿CompileList {
+	A = "ertatest.cxx"
+}
+OutputName = "ertatest"
+Subsystem = "Console"
+UseVersionDefines = true
+VersionInformation {
+	ApplicationName = "Engine Runtime Auto Build Test"
+	CompanyName = "Engine Software"
+	Copyright = "© Engine Software. 2019-2021"
+	Version = "2.0.0.7"
+	InternalName = "ertatest"
+	ApplicationIdentifier = "EngineRuntime.AutoTest"
+	CompanyIdentifier = "EngineSoftware"
+	Description = "Makes a set of build tests."
+}

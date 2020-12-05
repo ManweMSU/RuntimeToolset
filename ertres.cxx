@@ -1,4 +1,4 @@
-#include "ertcom.h"
+﻿#include "ertcom.h"
 
 enum class ResourceMode { Windows, MacOSX };
 

@@ -932,10 +932,18 @@ void PutConfigurationChanges(Console & console)
 	state.self_config->SetValue(L"Compiler", state.default_compiler_path);
 	#endif
 	SafePointer<RegistryNode> aa = state.self_config->OpenNode(L"AvailableArchitectures");
+	#ifdef ENGINE_WINDOWS
 	for (auto & ts : state.tools) {
 		try { aa->CreateValue(ts.arch, RegistryValueType::Boolean); } catch (...) {}
 		aa->SetValue(ts.arch, true);
 	}
+	#endif
+	#ifdef ENGINE_MACOSX
+	try { aa->CreateValue(L"X64", RegistryValueType::Boolean); } catch (...) {}
+	aa->SetValue(L"X64", true);
+	try { aa->CreateValue(L"ARM64", RegistryValueType::Boolean); } catch (...) {}
+	aa->SetValue(L"ARM64", true);
+	#endif
 	console << TextColor(Console::ColorGreen) << L"Succeed." << TextColorDefault() << LineFeed();
 }
 

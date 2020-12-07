@@ -1,0 +1,22 @@
+﻿CompileList {
+	A = "ertbndl.cxx"
+}
+OutputName = "ertbndl"
+Subsystem = "Console"
+UseVersionDefines = true
+VersionInformation {
+	ApplicationName = "Engine Runtime bundle manager"
+	CompanyName = "Engine Software"
+	Copyright = "© Engine Software. 2019-2021"
+	Version = "1.1.0.5"
+	InternalName = "ertbndl"
+	ApplicationIdentifier = "EngineRuntime.BundleManager"
+	CompanyIdentifier = "EngineSoftware"
+	Description = "Manages the installation."
+}
+Attachments {
+	A {
+		From = "ertbndl.ecs"
+		To = "ertbndl.ecs"
+	}
+}

@@ -1,19 +1,8 @@
-﻿CompileAll = false
-CompileAt = "."
-OutputLocation = "./_build"
-OutputLocationDebug = "./_build_debug"
-OutputLocationMacOSX64 = "macosx"
-OutputLocationWindows32 = "win32"
-OutputLocationWindows64 = "win64"
-OutputName = "ertbuild"
+﻿OutputName = "ertbuild"
 Subsystem = "Console"
 UseVersionDefines = true
 Attachments {
 	A {
-		From = "ertbuild.ini"
-		To = "ertbuild.ini"
-	}
-	B {
 		From = "bootstrapper.cpp"
 		To = "bootstrapper.cpp"
 	}
@@ -32,6 +21,3 @@ VersionInformation {
 	InternalName = "ertbuild"
 	Version = "2.0.0.51"
 }
-
-"-MacOSX" { OutputLocation = "" }
-"-Windows" { OutputLocation = "" }

@@ -113,8 +113,10 @@ bool CopyFile(const string & from, const string & to);
 
 int ConfigurationInitialize(Console & console);
 int SelectTarget(const string & name, BuildTargetClass cls, Console & console);
+BuildTarget * FindTarget(const string & name, BuildTargetClass cls);
 int MakeLocalConfiguration(Console & console);
 int LoadProject(Console & console);
+string GeneralCheckForForcedArchitecture(const string & arch, const string & os, const string & conf, const string & subs);
 void ProjectPostConfig(void);
 bool IsValidIdentifier(const string & value);
 int LoadVersionInformation(Console & console);

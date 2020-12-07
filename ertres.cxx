@@ -674,7 +674,7 @@ int Main(void)
 			console << L"  :C - clean build, rebuild any cached files," << LineFeed();
 			console << L"  :E - use shell error mode - open error logs in an external editor," << LineFeed();
 			console << L"  :N - use no logo mode - don't print application logo," << LineFeed();
-			console << L"  :S - use silent mode - supress any output, except output path," << LineFeed();
+			console << L"  :S - use silent mode - supress any output," << LineFeed();
 			console << L"  :a - specify processor architecture (as the next argument)," << LineFeed();
 			console << L"  :c - specify target configuration (as the next argument)," << LineFeed();
 			console << L"  :o - specify target operating system (as the next argument)." << LineFeed();

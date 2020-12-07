@@ -1,0 +1,17 @@
+﻿OutputName = "ertvscc"
+Subsystem = "Console"
+UseVersionDefines = true
+CompileList {
+	A = "ertvscc.cxx"
+	B = "ertcom.cxx"
+}
+VersionInformation {
+	ApplicationIdentifier = "EngineRuntime.VisualStudioConfigurator"
+	ApplicationName = "Engine Runtime Visual Studio Code configurator"
+	CompanyIdentifier = "EngineSoftware"
+	CompanyName = "Engine Software"
+	Copyright = "© Engine Software. 2021"
+	Description = "Generates environment configuration for Visual Studio Code."
+	InternalName = "ertvscc"
+	Version = "1.0.0.1"
+}

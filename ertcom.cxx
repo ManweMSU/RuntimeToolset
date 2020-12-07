@@ -4,6 +4,7 @@ BuilderState state;
 
 SafePointer<Registry> tool_config;
 SafePointer<Registry> local_config;
+SafePointer<Registry> project_initial_config;
 
 string EscapeString(const string & input)
 {
@@ -224,6 +225,16 @@ int SelectTarget(const string & name, BuildTargetClass cls, Console & console)
 	if (!state.silent) console << TextColor(Console::ColorRed) << FormatString(L"No %0 with name \"%1\" was found.", cls_name, name) << TextColorDefault() << LineFeed();
 	return ERTBT_UNKNOWN_TARGET;
 }
+BuildTarget * FindTarget(const string & name, BuildTargetClass cls)
+{
+	Array<BuildTarget> * search_vol = 0;
+	if (cls == BuildTargetClass::Architecture) search_vol = &state.vol_arch;
+	else if (cls == BuildTargetClass::OperatingSystem) search_vol = &state.vol_os;
+	else if (cls == BuildTargetClass::Configuration) search_vol = &state.vol_conf;
+	else if (cls == BuildTargetClass::Subsystem) search_vol = &state.vol_subsys;
+	for (auto & e : *search_vol) if (string::CompareIgnoreCase(e.Name, name) == 0) { return &e; }
+	return 0;
+}
 int MakeLocalConfiguration(Console & console)
 {
 	ObjectArray<RegistryNode> merge(0x10);
@@ -258,33 +269,33 @@ int MakeLocalConfiguration(Console & console)
 }
 int LoadProject(Console & console)
 {
-	SafePointer<Registry> project_main;
 	auto project_extension = IO::Path::GetExtension(state.project_file_path).LowerCase();
 	if (project_extension == L"c" || project_extension == L"cpp" || project_extension == L"cxx") {
-		project_main = CreateRegistry();
-		project_main->CreateNode(L"CompileList");
-		project_main->CreateValue(L"CompileList/A", RegistryValueType::String);
-		project_main->SetValue(L"CompileList/A", state.project_file_path);
+		project_initial_config = CreateRegistry();
+		project_initial_config->CreateNode(L"CompileList");
+		project_initial_config->CreateValue(L"CompileList/A", RegistryValueType::String);
+		project_initial_config->SetValue(L"CompileList/A", state.project_file_path);
 		state.project_time = 0;
 	} else {
 		try {
 			FileStream project_stream(state.project_file_path, AccessRead, OpenExisting);
 			state.project_time = IO::DateTime::GetFileAlterTime(project_stream.Handle());
-			project_main = CompileTextRegistry(&project_stream);
-			if (!project_main) throw Exception();
+			project_initial_config = CompileTextRegistry(&project_stream);
+			if (!project_initial_config) throw Exception();
 		} catch (...) {
 			if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed to access the project file." << TextColorDefault() << LineFeed();
 			return ERTBT_PROJECT_FILE_ACCESS;
 		}
 	}
-	auto ss = project_main->GetValueString(L"Subsystem");
+	SafePointer<Registry> project = project_initial_config->Clone();
+	auto ss = project_initial_config->GetValueString(L"Subsystem");
 	if (ss.Length()) {
 		auto error = SelectTarget(ss, BuildTargetClass::Subsystem, console);
 		if (error) return error;
 	}
 	ObjectArray<RegistryNode> merge_nodes(0x10);
 	Array<string> merge_nodes_names(0x10);
-	for (auto & nn : project_main->GetSubnodes()) {
+	for (auto & nn : project_initial_config->GetSubnodes()) {
 		if (nn[0] != L'-') continue;
 		merge_nodes_names.Append(nn);
 		auto parts = nn.Fragment(1, -1).Split(L'-');
@@ -294,12 +305,12 @@ int LoadProject(Console & console)
 				string::CompareIgnoreCase(p, state.subsys.Name) && string::CompareIgnoreCase(p, state.conf.Name)) { accept = false; break; }
 		}
 		if (accept) {
-			SafePointer<RegistryNode> node = project_main->OpenNode(nn);
+			SafePointer<RegistryNode> node = project_initial_config->OpenNode(nn);
 			if (node) merge_nodes.Append(node);
 		}
 	}
-	for (auto & nn : merge_nodes_names) project_main->RemoveNode(nn);
-	merge_nodes.Append(project_main);
+	for (auto & nn : merge_nodes_names) project->RemoveNode(nn);
+	merge_nodes.Append(project);
 	SafePointer<RegistryNode> rep_node = CreateMergedNode(merge_nodes);
 	state.project = CreateRegistryFromNode(rep_node);
 	state.project_root_path = IO::Path::GetDirectory(state.project_file_path);
@@ -313,6 +324,30 @@ int LoadProject(Console & console)
 		}
 	}
 	return ERTBT_SUCCESS;
+}
+string GeneralCheckForForcedArchitecture(const string & arch, const string & os, const string & conf, const string & subs)
+{
+	SafePointer<Registry> project = project_initial_config->Clone();
+	ObjectArray<RegistryNode> merge_nodes(0x10);
+	Array<string> merge_nodes_names(0x10);
+	for (auto & nn : project_initial_config->GetSubnodes()) {
+		if (nn[0] != L'-') continue;
+		merge_nodes_names.Append(nn);
+		auto parts = nn.Fragment(1, -1).Split(L'-');
+		bool accept = true;
+		for (auto & p : parts) {
+			if (string::CompareIgnoreCase(p, arch) && string::CompareIgnoreCase(p, os) &&
+				string::CompareIgnoreCase(p, subs) && string::CompareIgnoreCase(p, conf)) { accept = false; break; }
+		}
+		if (accept) {
+			SafePointer<RegistryNode> node = project_initial_config->OpenNode(nn);
+			if (node) merge_nodes.Append(node);
+		}
+	}
+	for (auto & nn : merge_nodes_names) project->RemoveNode(nn);
+	merge_nodes.Append(project);
+	SafePointer<RegistryNode> rep_node = CreateMergedNode(merge_nodes);
+	return rep_node->GetValueString(L"ForcedArch");
 }
 void ProjectPostConfig(void)
 {

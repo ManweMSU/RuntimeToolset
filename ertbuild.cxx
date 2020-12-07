@@ -227,29 +227,31 @@ int InvokeResourceTool(Console & console, Array<string> & link_list)
 			SkipResourceToolAlert(console);
 			return ERTBT_SUCCESS;
 		}
-		Array<string> rt_args(0x10);
-		rt_args << state.project_file_path;
-		rt_args << L"-N";
-		if (state.clean) rt_args << L"-C";
-		if (state.shelllog) rt_args << L"-E";
-		if (state.silent) rt_args << L"-S";
-		rt_args << L"-a";
-		rt_args << state.arch.Name;
-		rt_args << L"-c";
-		rt_args << state.conf.Name;
-		rt_args << L"-o";
-		rt_args << state.os.Name;
-		IO::SetStandardOutput(state.stdout_clone);
-		IO::SetStandardError(state.stderr_clone);
-		SafePointer<Process> restool = CreateCommandProcess(rt, &rt_args);
-		if (!restool) {
-			if (!state.silent) console << TextColor(Console::ColorRed) << FormatString(L"Failed to launch the resource generator (%0).", rt) << TextColorDefault() << LineFeed();
-			return ERTBT_INVALID_RESOURCE_SET;
-		}
-		restool->Wait();
-		if (restool->GetExitCode()) {
-			if (!state.silent) console << TextColor(Console::ColorRed) << L"Resource generator failed." << TextColorDefault() << LineFeed();
-			return restool->GetExitCode();
+		if (!state.pathout) {
+			Array<string> rt_args(0x10);
+			rt_args << state.project_file_path;
+			rt_args << L"-N";
+			if (state.clean) rt_args << L"-C";
+			if (state.shelllog) rt_args << L"-E";
+			if (state.silent) rt_args << L"-S";
+			rt_args << L"-a";
+			rt_args << state.arch.Name;
+			rt_args << L"-c";
+			rt_args << state.conf.Name;
+			rt_args << L"-o";
+			rt_args << state.os.Name;
+			IO::SetStandardOutput(state.stdout_clone);
+			IO::SetStandardError(state.stderr_clone);
+			SafePointer<Process> restool = CreateCommandProcess(rt, &rt_args);
+			if (!restool) {
+				if (!state.silent) console << TextColor(Console::ColorRed) << FormatString(L"Failed to launch the resource generator (%0).", rt) << TextColorDefault() << LineFeed();
+				return ERTBT_INVALID_RESOURCE_SET;
+			}
+			restool->Wait();
+			if (restool->GetExitCode()) {
+				if (!state.silent) console << TextColor(Console::ColorRed) << L"Resource generator failed." << TextColorDefault() << LineFeed();
+				return restool->GetExitCode();
+			}
 		}
 		if (link_with.Length()) link_list << ProcessResourceString(link_with);
 		if (set_output.Length()) state.output_executable = IO::ExpandPath(ProcessResourceString(set_output));

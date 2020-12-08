@@ -464,8 +464,8 @@ void RegisterTargets(Console & console)
 	if (sys_arch == Platform::X86) {
 		if (ts = FindToolset(L"X86")) { SetDefaultTarget(ts->arch); state.default_compiler_path = ts->compiler; }
 	} else if (sys_arch == Platform::X64) {
-		if (ts = FindToolset(L"X86")) { SetDefaultTarget(ts->arch); state.default_compiler_path = ts->compiler; }
-		else if (ts = FindToolset(L"X64")) { SetDefaultTarget(ts->arch); state.default_compiler_path = ts->compiler; }
+		if (ts = FindToolset(L"X64")) { SetDefaultTarget(ts->arch); state.default_compiler_path = ts->compiler; }
+		else if (ts = FindToolset(L"X86")) { SetDefaultTarget(ts->arch); state.default_compiler_path = ts->compiler; }
 	} else if (sys_arch == Platform::ARM) {
 		if (ts = FindToolset(L"ARM")) { SetDefaultTarget(ts->arch); state.default_compiler_path = ts->compiler; }
 		else if (ts = FindToolset(L"X86")) { SetDefaultTarget(ts->arch); state.default_compiler_path = ts->compiler; }
@@ -843,7 +843,7 @@ void GenerateAtomsMacOSX(Console & console)
 	mac.compiler.argument_include = L"-I";
 	mac.compiler.argument_output = L"-o";
 	mac.compiler.arguments << L"-c";
-	mac.compiler.arguments << L"-std=c++14";
+	mac.compiler.arguments << L"-std=c++17";
 	mac.compiler.arguments << L"-fmodules";
 	mac.compiler.arguments << L"-fcxx-modules";
 	mac.linker.command = L"clang++";

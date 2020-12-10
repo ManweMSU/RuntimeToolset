@@ -158,7 +158,7 @@ int CreateEnvironment(Console & console)
 		JsonSerializer serializer(&stream);
 		serializer.DeserializeObject(configs);
 		Configuration * config = 0;
-		for (auto & c : configs.configurations.InnerArray) if (c.name == part_name) { config = &c; break; }
+		for (auto & c : configs.configurations) if (c.name == part_name) { config = &c; break; }
 		if (!config) {
 			configs.version = 4;
 			configs.configurations.AppendNew();
@@ -236,7 +236,7 @@ void CreateBuildTask(BuildTasks & tasks, const string & arch, const string & os,
 	if (forced_arch.Length() && string::CompareIgnoreCase(forced_arch, arch_info->Name)) return;
 	auto name = FormatString(L"Build (%0, %1, %2)", os_info->HumanReadableName, arch_info->HumanReadableName, conf_info->HumanReadableName);
 	BuildTask * task = 0;
-	for (auto & t : tasks.tasks.InnerArray) if (t.label == name) { task = &t; break; }
+	for (auto & t : tasks.tasks) if (t.label == name) { task = &t; break; }
 	if (!task) {
 		tasks.version = L"2.0.0";
 		tasks.tasks.AppendNew();
@@ -289,7 +289,7 @@ int CreateLaunchTask(Console & console)
 		JsonSerializer serializer(&stream);
 		serializer.DeserializeObject(list);
 		LaunchTask * task = 0;
-		for (auto & t : list.configurations.InnerArray) if (t.name == name) { task = &t; break; }
+		for (auto & t : list.configurations) if (t.name == name) { task = &t; break; }
 		if (!task) {
 			list.version = L"0.2.0";
 			list.configurations.AppendNew();

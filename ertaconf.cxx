@@ -863,7 +863,6 @@ void GenerateAtomsMacOSX(Console & console)
 	mac_release.compiler.arguments << L"-O3";
 	mac_release.compiler.arguments << L"-fvisibility=hidden";
 	mac_release.linker.arguments << L"-O3";
-	mac_release.linker.arguments << L"-s";
 	mac_release.linker.arguments << L"-fvisibility=hidden";
 	auto & mac_debug = CreateAtom(L"", state.current_os, L"Debug", L"");
 	mac_debug.compiler.arguments << L"-O0";

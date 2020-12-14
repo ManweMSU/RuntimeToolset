@@ -1,0 +1,16 @@
+﻿CompileList {
+	A = "eregconv.cxx"
+}
+OutputName = "eregconv"
+Subsystem = "Console"
+UseVersionDefines = true
+VersionInformation {
+	ApplicationName = "Engine Registry Converter"
+	CompanyName = "Engine Software"
+	Copyright = "© Engine Software. 2018-2021"
+	Version = "1.0.1.4"
+	InternalName = "eregconv"
+	ApplicationIdentifier = "Engine.RegistryConverter"
+	CompanyIdentifier = "EngineSoftware"
+	Description = "Convert and display text or binary registry notations."
+}

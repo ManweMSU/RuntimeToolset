@@ -424,7 +424,7 @@ int CompileResource(const string & source, const string & object, const string &
 	SafePointer<RegistryNode> la = configuration->OpenNode(L"Compiler/Arguments");
 	if (la) for (auto & v : la->GetValues()) cc_args << la->GetValueString(v);
 	cc_args << source;
-	handle log_file = IO::CreateFile(log, IO::AccessReadWrite, IO::CreateAlways);
+	handle log_file = IO::CreateFile(log, AccessReadWrite, CreateAlways);
 	IO::SetStandardOutput(log_file);
 	IO::SetStandardError(log_file);
 	IO::CloseFile(log_file);

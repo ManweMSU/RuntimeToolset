@@ -50,7 +50,7 @@ int CompileSource(const string & source, const string & object, const string & l
 	}
 	SafePointer<RegistryNode> la = local_config->OpenNode(L"Compiler/Arguments");
 	if (la) for (auto & v : la->GetValues()) cc_args << la->GetValueString(v);
-	handle log_file = IO::CreateFile(log, IO::AccessReadWrite, IO::CreateAlways);
+	handle log_file = IO::CreateFile(log, AccessReadWrite, CreateAlways);
 	IO::SetStandardOutput(log_file);
 	IO::SetStandardError(log_file);
 	IO::CloseFile(log_file);
@@ -92,7 +92,7 @@ int LinkExecutable(const Array<string> & obj_list, const string & output, const 
 	AppendArgumentLine(link_args, oa, output);
 	SafePointer<RegistryNode> la = local_config->OpenNode(L"Linker/Arguments");
 	if (la) for (auto & v : la->GetValues()) link_args << la->GetValueString(v);
-	handle log_file = IO::CreateFile(log, IO::AccessReadWrite, IO::CreateAlways);
+	handle log_file = IO::CreateFile(log, AccessReadWrite, CreateAlways);
 	IO::SetStandardOutput(log_file);
 	IO::SetStandardError(log_file);
 	IO::CloseFile(log_file);

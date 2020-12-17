@@ -1,0 +1,16 @@
+﻿CompileList {
+	A = "eimgconv.cxx"
+}
+OutputName = "eimgconv"
+Subsystem = "Console"
+UseVersionDefines = true
+VersionInformation {
+	ApplicationName = "Engine Image Converter"
+	CompanyName = "Engine Software"
+	Copyright = "© Engine Software. 2018-2021"
+	Version = "1.0.1.4"
+	InternalName = "eimgconv"
+	ApplicationIdentifier = "Engine.ImageConverter"
+	CompanyIdentifier = "EngineSoftware"
+	Description = "Converts images from one format to another."
+}

@@ -1,0 +1,16 @@
+﻿CompileList {
+	A = "earcmgr.cxx"
+}
+OutputName = "earcmgr"
+Subsystem = "Console"
+UseVersionDefines = true
+VersionInformation {
+	ApplicationName = "Engine Archive Manager"
+	CompanyName = "Engine Software"
+	Copyright = "© Engine Software. 2018-2021"
+	Version = "1.0.3.10"
+	InternalName = "earcmgr"
+	ApplicationIdentifier = "Engine.ArchiveManager"
+	CompanyIdentifier = "EngineSoftware"
+	Description = "Edits archive lists and builds archives."
+}

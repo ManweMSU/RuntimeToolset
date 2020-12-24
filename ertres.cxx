@@ -114,7 +114,7 @@ int ParseCommandLine(Console & console)
 
 int BuildIcon(const string & path, UniqueIcon ** icon, Console & console, bool is_file_icon = false)
 {
-	for (auto & i : res_state.icon_database) if (i.ConvertedPath == path) {
+	for (auto & i : res_state.icon_database) if (i.SourcePath == path) {
 		if (icon) *icon = &i;
 		return ERTBT_SUCCESS;
 	}

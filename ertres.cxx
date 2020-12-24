@@ -295,15 +295,14 @@ void GenerateResourceScript(const string & at, Console & console)
 		script.LineFeed();
 		script.WriteLine(L"CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST \"" + EscapeStringRc(res_state.resource_manifest_file) + L"\"");
 		script.LineFeed();
-		if (res_state.application_icon) script.WriteLine(L"1 ICON \"" + EscapeStringRc(res_state.application_icon->ConvertedPath) + L"\"");
-		if (res_state.file_formats.Length()) {
-			int index = 2;
-			for (auto & ff : res_state.file_formats) if (ff.Icon) {
-				script.WriteLine(string(index) + L" ICON \"" + EscapeStringRc(ff.Icon->ConvertedPath) + L"\"");
+		if (res_state.icon_database.Length()) {
+			int index = 1;
+			for (auto & i : res_state.icon_database) {
+				script.WriteLine(string(index) + L" ICON \"" + EscapeStringRc(i.ConvertedPath) + L"\"");
 				index++;
 			}
+			script.LineFeed();
 		}
-		if (res_state.icon_database.Length()) script.LineFeed();
 		if (res_state.resources.Length()) {
 			for (auto & r : res_state.resources) {
 				auto inner_name = r.Locale.Length() ? (r.Name + L"-" + r.Locale) : r.Name;

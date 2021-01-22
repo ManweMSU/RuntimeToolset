@@ -33,6 +33,8 @@ using namespace Engine::Storage;
 #define ERTBT_BUNDLE_BUILD_ERROR	33
 #define ERTBT_INVALID_RC_SET		34
 #define ERTBT_RC_FAILED				35
+#define ERTBT_EXTENSIONS_FAILED		40
+#define ERTBT_EXTENSIONS_SYNTAX		41
 
 enum class BuildTargetClass { Architecture, OperatingSystem, Configuration, Subsystem };
 

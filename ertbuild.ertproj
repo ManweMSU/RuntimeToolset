@@ -19,5 +19,5 @@ VersionInformation {
 	Copyright = "© Engine Software. 2018-2021"
 	Description = "Builds Engine Runtime and Engine Runtime - based applications."
 	InternalName = "ertbuild"
-	Version = "2.0.0.51"
+	Version = "2.0.1.52"
 }

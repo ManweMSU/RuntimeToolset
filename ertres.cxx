@@ -95,6 +95,25 @@ int ParseCommandLine(Console & console)
 						console << TextColor(Console::ColorYellow) << L"Invalid command line: argument expected." << TextColorDefault() << LineFeed();
 						return ERTBT_INVALID_COMMAND_LINE;
 					}
+				} else if (arg == L'r') {
+					if (i < args->Length() - 1) {
+						auto name = args->ElementAt(i);
+						if (!IsValidResourceName(name)) {
+							if (!state.silent) console << TextColor(Console::ColorRed) << FormatString(L"Invalid resource name \"%0\".", name) << TextColorDefault() << LineFeed();
+							return ERTBT_INVALID_RESOURCE;
+						}
+						i++;
+						auto path = IO::ExpandPath(args->ElementAt(i));
+						i++;
+						ApplicationResource resource;
+						resource.SourcePath = path;
+						resource.Name = name;
+						resource.Locale = L"";
+						res_state.resources.Append(resource);
+					} else {
+						console << TextColor(Console::ColorYellow) << L"Invalid command line: a pair of arguments expected." << TextColorDefault() << LineFeed();
+						return ERTBT_INVALID_COMMAND_LINE;
+					}
 				} else {
 					console << TextColor(Console::ColorYellow) << FormatString(L"Command line argument \"%0\" is invalid.", string(arg, 1)) << TextColorDefault() << LineFeed();
 					return ERTBT_INVALID_COMMAND_LINE;
@@ -676,7 +695,8 @@ int Main(void)
 			console << L"  :S - use silent mode - supress any output," << LineFeed();
 			console << L"  :a - specify processor architecture (as the next argument)," << LineFeed();
 			console << L"  :c - specify target configuration (as the next argument)," << LineFeed();
-			console << L"  :o - specify target operating system (as the next argument)." << LineFeed();
+			console << L"  :o - specify target operating system (as the next argument)," << LineFeed();
+			console << L"  :r - specify an additional resource (name and path as the next arguments)." << LineFeed();
 			console << LineFeed();
 		}
 	} catch (Exception & e) {

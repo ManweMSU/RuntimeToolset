@@ -1,7 +1,102 @@
 ﻿#include "ertcom.h"
 
-int CompileSource(const string & source, const string & object, const string & log, Console & console)
+struct {
+	Array<string> files_include = Array<string>(0x10);
+	Array<string> include_with_name = Array<string>(0x10);
+	Array<int> include_as = Array<int>(0x10); // 0 - Resource, 1 - Attachment
+} lang_ext_state;
+
+int HandleProcessDirectives(const string & source, const string & object, const string & directive, Array<string> & command_line_ex, Console & console)
 {
+	Syntax::Spelling spelling;
+	SafePointer< Array<Syntax::Token> > tokens;
+	try {
+		tokens = Syntax::ParseText(directive, spelling);
+	} catch (...) {
+		if (!state.silent) {
+			console << TextColor(Console::ColorRed) <<
+				FormatString(L"Invalid directive syntax: \"%0\" in file \"%1\".", directive, IO::Path::GetFileName(source)) <<
+				TextColorDefault() << LineFeed();
+		}
+		return ERTBT_EXTENSIONS_SYNTAX;
+	}
+	int pos = 0;
+	while (tokens->ElementAt(pos).Class != Syntax::TokenClass::EndOfStream) {
+		if (tokens->ElementAt(pos).Class == Syntax::TokenClass::Identifier && tokens->ElementAt(pos).Content == L"resource") {
+			pos++;
+			if (tokens->ElementAt(pos).Class == Syntax::TokenClass::Constant && tokens->ElementAt(pos).ValueClass == Syntax::TokenConstantClass::String) {
+				lang_ext_state.files_include << object;
+				lang_ext_state.include_with_name << tokens->ElementAt(pos).Content;
+				lang_ext_state.include_as << 0;
+				pos++;
+			} else {
+				if (!state.silent) {
+					console << TextColor(Console::ColorRed) <<
+						FormatString(L"Invalid directive syntax: \"%0\" in file \"%1\".", directive, IO::Path::GetFileName(source)) <<
+						TextColorDefault() << LineFeed();
+				}
+				return ERTBT_EXTENSIONS_SYNTAX;
+			}
+		} else if (tokens->ElementAt(pos).Class == Syntax::TokenClass::Identifier && tokens->ElementAt(pos).Content == L"attachment") {
+			pos++;
+			if (tokens->ElementAt(pos).Class == Syntax::TokenClass::Constant && tokens->ElementAt(pos).ValueClass == Syntax::TokenConstantClass::String) {
+				lang_ext_state.files_include << object;
+				lang_ext_state.include_with_name << tokens->ElementAt(pos).Content;
+				lang_ext_state.include_as << 1;
+				pos++;
+			} else {
+				if (!state.silent) {
+					console << TextColor(Console::ColorRed) <<
+						FormatString(L"Invalid directive syntax: \"%0\" in file \"%1\".", directive, IO::Path::GetFileName(source)) <<
+						TextColorDefault() << LineFeed();
+				}
+				return ERTBT_EXTENSIONS_SYNTAX;
+			}
+		} else if (tokens->ElementAt(pos).Class == Syntax::TokenClass::Identifier && tokens->ElementAt(pos).Content == L"commands") {
+			pos++;
+			while (tokens->ElementAt(pos).Class == Syntax::TokenClass::Constant && tokens->ElementAt(pos).ValueClass == Syntax::TokenConstantClass::String) {
+				command_line_ex << tokens->ElementAt(pos).Content;
+				pos++;
+			}
+		} else {
+			if (!state.silent) {
+				console << TextColor(Console::ColorRed) <<
+					FormatString(L"Invalid directive syntax: \"%0\" in file \"%1\".", directive, IO::Path::GetFileName(source)) <<
+					TextColorDefault() << LineFeed();
+			}
+			return ERTBT_EXTENSIONS_SYNTAX;
+		}
+	}
+	return ERTBT_SUCCESS;
+}
+int CompileSource(const string & source, const string & object, const string & log, Console & console, bool use_lang_ext = false)
+{
+	Array<string> command_line_ex(0x10);
+	if (use_lang_ext) {
+		string lang_ext_command;
+		try {
+			FileStream src(source, AccessRead, OpenExisting);
+			TextReader reader(&src);
+			while (!reader.EofReached()) {
+				auto line = reader.ReadLine();
+				if (line.Length() > 1 && line[0] == L'#' && line[1] == L'#') {
+					lang_ext_command = line.Fragment(2, -1);
+					break;
+				}
+			}
+		} catch (...) {
+			if (!state.silent) {
+				console << TextColor(Console::ColorRed) <<
+					FormatString(L"Failed to parse \"%0\" for processing directives.", IO::Path::GetFileName(source)) <<
+					TextColorDefault() << LineFeed();
+			}
+			return ERTBT_EXTENSIONS_FAILED;
+		}
+		if (!lang_ext_command.Length()) return ERTBT_SUCCESS;
+		if (state.pathout) return ERTBT_SUCCESS;
+		auto error = HandleProcessDirectives(source, object, lang_ext_command, command_line_ex, console);
+		if (error) return error;
+	}
 	if (!state.clean) {
 		try {
 			FileStream src(source, AccessRead, OpenExisting);
@@ -16,67 +111,104 @@ int CompileSource(const string & source, const string & object, const string & l
 			}
 		} catch (...) {}
 	}
-	auto da = local_config->GetValueString(L"Compiler/DefineArgument");
-	auto ia = local_config->GetValueString(L"Compiler/IncludeArgument");
-	auto oa = local_config->GetValueString(L"Compiler/OutputArgument");
-	auto cc = local_config->GetValueString(L"Compiler/Path");
-	if (!cc.Length()) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"No compiler set for current configuration." << TextColorDefault() << LineFeed();
-		return ERTBT_INVALID_COMPILER_SET;
-	}
-	if (!state.silent) console << L"Compiling " << TextColor(Console::ColorCyan) << IO::Path::GetFileName(source) << TextColorDefault() << L"...";
-	Array<string> cc_args(0x80);
-	cc_args << source;
-	AppendArgumentLine(cc_args, ia, state.runtime_source_path);
-	for (auto & i : state.extra_include) AppendArgumentLine(cc_args, ia, i);
-	AppendArgumentLine(cc_args, oa, object);
-	SafePointer<RegistryNode> ld = local_config->OpenNode(L"Defines");
-	if (ld) for (auto & v : ld->GetValues()) AppendArgumentLine(cc_args, da, v + L"=1");
-	if (state.version_information.CreateVersionDefines) {
-		AppendArgumentLine(cc_args, da, L"ENGINE_VI_APPNAME=L\"" + EscapeString(state.version_information.ApplicationName) + L"\"");
-		AppendArgumentLine(cc_args, da, L"ENGINE_VI_COMPANY=L\"" + EscapeString(state.version_information.CompanyName) + L"\"");
-		AppendArgumentLine(cc_args, da, L"ENGINE_VI_COPYRIGHT=L\"" + EscapeString(state.version_information.Copyright) + L"\"");
-		AppendArgumentLine(cc_args, da, L"ENGINE_VI_APPSYSNAME=L\"" + EscapeString(state.version_information.InternalName) + L"\"");
-		AppendArgumentLine(cc_args, da, L"ENGINE_VI_APPIDENT=L\"" + EscapeString(state.version_information.ApplicationIdentifier) + L"\"");
-		AppendArgumentLine(cc_args, da, L"ENGINE_VI_COMPANYIDENT=L\"" + EscapeString(state.version_information.CompanyIdentifier) + L"\"");
-		AppendArgumentLine(cc_args, da, L"ENGINE_VI_DESCRIPTION=L\"" + EscapeString(state.version_information.ApplicationDescription) + L"\"");
-		AppendArgumentLine(cc_args, da, L"ENGINE_VI_VERSIONMAJOR=" + string(state.version_information.VersionMajor));
-		AppendArgumentLine(cc_args, da, L"ENGINE_VI_VERSIONMINOR=" + string(state.version_information.VersionMinor));
-		AppendArgumentLine(cc_args, da, L"ENGINE_VI_SUBVERSION=" + string(state.version_information.Subversion));
-		AppendArgumentLine(cc_args, da, L"ENGINE_VI_BUILD=" + string(state.version_information.Build));
-		AppendArgumentLine(cc_args, da, L"ENGINE_VI_APPSHORTVERSION=L\"" + string(state.version_information.VersionMajor) + L"." + string(state.version_information.VersionMinor) + L"\"");
-		AppendArgumentLine(cc_args, da, L"ENGINE_VI_APPVERSION=L\"" + string(state.version_information.VersionMajor) + L"." + string(state.version_information.VersionMinor) + L"." +
-			string(state.version_information.Subversion) + L"." + string(state.version_information.Build) + L"\"");
-	}
-	SafePointer<RegistryNode> la = local_config->OpenNode(L"Compiler/Arguments");
-	if (la) for (auto & v : la->GetValues()) cc_args << la->GetValueString(v);
-	handle log_file = IO::CreateFile(log, AccessReadWrite, CreateAlways);
-	IO::SetStandardOutput(log_file);
-	IO::SetStandardError(log_file);
-	IO::CloseFile(log_file);
-	SafePointer<Process> compiler = CreateCommandProcess(cc, &cc_args);
-	if (!compiler) {
-		if (!state.silent) {
-			console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
-			console << TextColor(Console::ColorRed) << FormatString(L"Failed to launch the compiler (%0).", cc) << TextColorDefault() << LineFeed();
-			console << TextColor(Console::ColorRed) << L"You may try \"ertaconf\" to repair." << TextColorDefault() << LineFeed();
+	if (string::CompareIgnoreCase(IO::Path::GetExtension(source), L"uiml") == 0) {
+		Array<string> command_line(0x10);
+		command_line << source;
+		if (state.silent) command_line << L"-S";
+		command_line << L"-o";
+		command_line << object;
+		command_line << command_line_ex;
+		SafePointer<Process> uicc = CreateCommandProcess(L"uicc", &command_line);
+		if (!uicc) {
+			if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed to launch UICC." << TextColorDefault() << LineFeed();
+			return ERTBT_INVALID_COMPILER_SET;
 		}
-		return ERTBT_INVALID_COMPILER_SET;
+		uicc->Wait();
+		if (uicc->GetExitCode()) return ERTBT_COMPILATION_FAILED;
+		return ERTBT_SUCCESS;
+	} else if (string::CompareIgnoreCase(IO::Path::GetExtension(source), L"egsl") == 0) {
+		Array<string> command_line(0x10);
+		command_line << source;
+		if (state.silent) command_line << L"-S";
+		command_line << L"-o";
+		command_line << object;
+		command_line << command_line_ex;
+		if (!state.silent) console << L"Compiling " << TextColor(Console::ColorCyan) << IO::Path::GetFileName(source) << TextColorDefault() << L"...";
+		SafePointer<Process> slt = CreateCommandProcess(L"egsl", &command_line);
+		if (!slt) {
+			if (!state.silent) {
+				console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
+				console << TextColor(Console::ColorRed) << L"Failed to launch the EGSL translator." << TextColorDefault() << LineFeed();
+			}
+			return ERTBT_INVALID_COMPILER_SET;
+		}
+		slt->Wait();
+		if (slt->GetExitCode()) return ERTBT_COMPILATION_FAILED;
+		if (!state.silent) console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
+		return ERTBT_SUCCESS;
+	} else {
+		auto da = local_config->GetValueString(L"Compiler/DefineArgument");
+		auto ia = local_config->GetValueString(L"Compiler/IncludeArgument");
+		auto oa = local_config->GetValueString(L"Compiler/OutputArgument");
+		auto cc = local_config->GetValueString(L"Compiler/Path");
+		if (!cc.Length()) {
+			if (!state.silent) console << TextColor(Console::ColorRed) << L"No compiler set for current configuration." << TextColorDefault() << LineFeed();
+			return ERTBT_INVALID_COMPILER_SET;
+		}
+		if (!state.silent) console << L"Compiling " << TextColor(Console::ColorCyan) << IO::Path::GetFileName(source) << TextColorDefault() << L"...";
+		Array<string> cc_args(0x80);
+		cc_args << source;
+		AppendArgumentLine(cc_args, ia, state.runtime_source_path);
+		for (auto & i : state.extra_include) AppendArgumentLine(cc_args, ia, i);
+		AppendArgumentLine(cc_args, oa, object);
+		SafePointer<RegistryNode> ld = local_config->OpenNode(L"Defines");
+		if (ld) for (auto & v : ld->GetValues()) AppendArgumentLine(cc_args, da, v + L"=1");
+		if (state.version_information.CreateVersionDefines) {
+			AppendArgumentLine(cc_args, da, L"ENGINE_VI_APPNAME=L\"" + EscapeString(state.version_information.ApplicationName) + L"\"");
+			AppendArgumentLine(cc_args, da, L"ENGINE_VI_COMPANY=L\"" + EscapeString(state.version_information.CompanyName) + L"\"");
+			AppendArgumentLine(cc_args, da, L"ENGINE_VI_COPYRIGHT=L\"" + EscapeString(state.version_information.Copyright) + L"\"");
+			AppendArgumentLine(cc_args, da, L"ENGINE_VI_APPSYSNAME=L\"" + EscapeString(state.version_information.InternalName) + L"\"");
+			AppendArgumentLine(cc_args, da, L"ENGINE_VI_APPIDENT=L\"" + EscapeString(state.version_information.ApplicationIdentifier) + L"\"");
+			AppendArgumentLine(cc_args, da, L"ENGINE_VI_COMPANYIDENT=L\"" + EscapeString(state.version_information.CompanyIdentifier) + L"\"");
+			AppendArgumentLine(cc_args, da, L"ENGINE_VI_DESCRIPTION=L\"" + EscapeString(state.version_information.ApplicationDescription) + L"\"");
+			AppendArgumentLine(cc_args, da, L"ENGINE_VI_VERSIONMAJOR=" + string(state.version_information.VersionMajor));
+			AppendArgumentLine(cc_args, da, L"ENGINE_VI_VERSIONMINOR=" + string(state.version_information.VersionMinor));
+			AppendArgumentLine(cc_args, da, L"ENGINE_VI_SUBVERSION=" + string(state.version_information.Subversion));
+			AppendArgumentLine(cc_args, da, L"ENGINE_VI_BUILD=" + string(state.version_information.Build));
+			AppendArgumentLine(cc_args, da, L"ENGINE_VI_APPSHORTVERSION=L\"" + string(state.version_information.VersionMajor) + L"." + string(state.version_information.VersionMinor) + L"\"");
+			AppendArgumentLine(cc_args, da, L"ENGINE_VI_APPVERSION=L\"" + string(state.version_information.VersionMajor) + L"." + string(state.version_information.VersionMinor) + L"." +
+				string(state.version_information.Subversion) + L"." + string(state.version_information.Build) + L"\"");
+		}
+		SafePointer<RegistryNode> la = local_config->OpenNode(L"Compiler/Arguments");
+		if (la) for (auto & v : la->GetValues()) cc_args << la->GetValueString(v);
+		handle log_file = IO::CreateFile(log, AccessReadWrite, CreateAlways);
+		IO::SetStandardOutput(log_file);
+		IO::SetStandardError(log_file);
+		IO::CloseFile(log_file);
+		SafePointer<Process> compiler = CreateCommandProcess(cc, &cc_args);
+		if (!compiler) {
+			if (!state.silent) {
+				console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
+				console << TextColor(Console::ColorRed) << FormatString(L"Failed to launch the compiler (%0).", cc) << TextColorDefault() << LineFeed();
+				console << TextColor(Console::ColorRed) << L"You may try \"ertaconf\" to repair." << TextColorDefault() << LineFeed();
+			}
+			return ERTBT_INVALID_COMPILER_SET;
+		}
+		compiler->Wait();
+		if (compiler->GetExitCode()) {
+			if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
+			if (state.shelllog) {
+				IO::SetStandardOutput(state.stdout_clone);
+				IO::SetStandardError(state.stderr_clone);
+				Shell::OpenFile(log);
+			} else PrintError(IO::GetStandardError(), state.stderr_clone);
+			return ERTBT_COMPILATION_FAILED;
+		}
+		IO::SetStandardOutput(state.stdout_clone);
+		IO::SetStandardError(state.stderr_clone);
+		if (!state.silent) console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
+		return ERTBT_SUCCESS;
 	}
-	compiler->Wait();
-	if (compiler->GetExitCode()) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
-		if (state.shelllog) {
-			IO::SetStandardOutput(state.stdout_clone);
-			IO::SetStandardError(state.stderr_clone);
-			Shell::OpenFile(log);
-		} else PrintError(IO::GetStandardError(), state.stderr_clone);
-		return ERTBT_COMPILATION_FAILED;
-	}
-	IO::SetStandardOutput(state.stdout_clone);
-	IO::SetStandardError(state.stderr_clone);
-	if (!state.silent) console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
-	return ERTBT_SUCCESS;
 }
 int LinkExecutable(const Array<string> & obj_list, const string & output, const string & output_fake, const string & log, Console & console)
 {
@@ -140,6 +272,17 @@ int CopyAttachments(Console & console)
 			}
 			if (!state.silent) console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
 		}
+	}
+	for (int i = 0; i < lang_ext_state.include_as.Length(); i++) if (lang_ext_state.include_as[i] == 1) {
+		auto & source = lang_ext_state.files_include[i];
+		auto & dest = lang_ext_state.include_with_name[i];
+		if (!state.silent) console << L"Copying attachment " << TextColor(Console::ColorCyan) << IO::Path::GetFileName(dest) << TextColorDefault() << L"...";
+		IO::CreateDirectoryTree(IO::Path::GetDirectory(dest));
+		if (!CopyFile(source, dest)) {
+			if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
+			return ERTBT_ATTACHMENT_FAILED;
+		}
+		if (!state.silent) console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
 	}
 	return ERTBT_SUCCESS;
 }
@@ -240,6 +383,11 @@ int InvokeResourceTool(Console & console, Array<string> & link_list)
 			rt_args << state.conf.Name;
 			rt_args << L"-o";
 			rt_args << state.os.Name;
+			for (int i = 0; i < lang_ext_state.include_as.Length(); i++) if (lang_ext_state.include_as[i] == 0) {
+				rt_args << L"-r";
+				rt_args << lang_ext_state.include_with_name[i];
+				rt_args << lang_ext_state.files_include[i];
+			}
 			IO::SetStandardOutput(state.stdout_clone);
 			IO::SetStandardError(state.stderr_clone);
 			SafePointer<Process> restool = CreateCommandProcess(rt, &rt_args);
@@ -377,7 +525,8 @@ int BuildProject(Console & console)
 	for (auto & f : *object_files_search) object_files << IO::ExpandPath(state.runtime_object_path + L"/" + f);
 	source_files << state.runtime_bootstrapper_path;
 	if (state.project->GetValueBoolean(L"CompileAll")) {
-		SafePointer< Array<string> > source_files_search = IO::Search::GetFiles(state.project_root_path + L"/" + local_config->GetValueString(L"CompileFilter"), true);
+		auto filter = local_config->GetValueString(L"CompileFilter") + L";*.uiml;*.egsl";
+		SafePointer< Array<string> > source_files_search = IO::Search::GetFiles(state.project_root_path + L"/" + filter, true);
 		for (auto & f : *source_files_search) if (IO::Path::GetFileName(f)[0] != L'.') source_files << IO::ExpandPath(state.project_root_path + L"/" + f);
 	} else {
 		SafePointer<RegistryNode> list = state.project->OpenNode(L"CompileList");
@@ -389,10 +538,14 @@ int BuildProject(Console & console)
 		IO::CreateDirectoryTree(state.project_object_path);
 		for (auto & f : source_files) {
 			auto fo = IO::ExpandPath(state.project_object_path + L"/" + IO::Path::GetFileNameWithoutExtension(f));
-			auto fl = fo + L".log"; fo += L"." + local_config->GetValueString(L"ObjectExtension");
-			auto error = CompileSource(f, fo, fl, console);
+			auto fl = fo + L".log";
+			auto le = false;
+			if (string::CompareIgnoreCase(IO::Path::GetExtension(f), L"uiml") == 0) { fo += L".eui"; le = true; }
+			else if (string::CompareIgnoreCase(IO::Path::GetExtension(f), L"egsl") == 0) { fo += L".egso"; le = true; }
+			else fo += L"." + local_config->GetValueString(L"ObjectExtension");
+			auto error = CompileSource(f, fo, fl, console, le);
 			if (error) return error;
-			object_files << fo;
+			if (!le) object_files << fo;
 		}
 	}
 	if (!state.pathout) {

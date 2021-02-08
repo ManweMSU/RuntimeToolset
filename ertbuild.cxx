@@ -133,18 +133,13 @@ int CompileSource(const string & source, const string & object, const string & l
 		command_line << L"-o";
 		command_line << object;
 		command_line << command_line_ex;
-		if (!state.silent) console << L"Compiling " << TextColor(Console::ColorCyan) << IO::Path::GetFileName(source) << TextColorDefault() << L"...";
 		SafePointer<Process> slt = CreateCommandProcess(L"egsl", &command_line);
 		if (!slt) {
-			if (!state.silent) {
-				console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
-				console << TextColor(Console::ColorRed) << L"Failed to launch the EGSL translator." << TextColorDefault() << LineFeed();
-			}
+			if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed to launch the EGSL translator." << TextColorDefault() << LineFeed();
 			return ERTBT_INVALID_COMPILER_SET;
 		}
 		slt->Wait();
 		if (slt->GetExitCode()) return ERTBT_COMPILATION_FAILED;
-		if (!state.silent) console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
 		return ERTBT_SUCCESS;
 	} else {
 		auto da = local_config->GetValueString(L"Compiler/DefineArgument");

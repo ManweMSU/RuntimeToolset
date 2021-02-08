@@ -298,78 +298,82 @@ void GenerateApplicationManifest(const string & at, Console & console)
 }
 void GenerateResourceScript(const string & at, Console & console)
 {
+	MemoryStream buffer(0x1000);
+	TextWriter script(&buffer, Encoding::UTF16);
+	script.WriteEncodingSignature();
+	script.WriteLine(L"#include <Windows.h>");
+	script.LineFeed();
+	script.WriteLine(L"CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST \"" + EscapeStringRc(res_state.resource_manifest_file) + L"\"");
+	script.LineFeed();
+	if (res_state.icon_database.Length()) {
+		int index = 1;
+		for (auto & i : res_state.icon_database) {
+			script.WriteLine(string(index) + L" ICON \"" + EscapeStringRc(i.ConvertedPath) + L"\"");
+			index++;
+		}
+		script.LineFeed();
+	}
+	if (res_state.resources.Length()) {
+		for (auto & r : res_state.resources) {
+			auto inner_name = r.Locale.Length() ? (r.Name + L"-" + r.Locale) : r.Name;
+			script.WriteLine(inner_name + L" RCDATA \"" + EscapeStringRc(r.SourcePath) + L"\"");
+		}
+		script.LineFeed();
+	}
+	if (state.version_information.ApplicationName.Length()) {
+		auto is_library = configuration->GetValueBoolean(L"Library");
+		script.WriteLine(L"1 VERSIONINFO");
+		script.WriteLine(L"FILEVERSION " + string(state.version_information.VersionMajor) + L", " + string(state.version_information.VersionMinor) + L", " +
+			string(state.version_information.Subversion) + L", " + string(state.version_information.Build));
+		script.WriteLine(L"PRODUCTVERSION " + string(state.version_information.VersionMajor) + L", " + string(state.version_information.VersionMinor) + L", " +
+			string(state.version_information.Subversion) + L", " + string(state.version_information.Build));
+		script.WriteLine(L"FILEFLAGSMASK 0x3fL");
+		script.WriteLine(L"FILEFLAGS 0x0L");
+		script.WriteLine(L"FILEOS VOS_NT_WINDOWS32");
+		if (is_library) {
+			script.WriteLine(L"FILETYPE VFT_DLL");
+		} else {
+			script.WriteLine(L"FILETYPE VFT_APP");
+		}
+		script.WriteLine(L"FILESUBTYPE VFT2_UNKNOWN");
+		script.WriteLine(L"BEGIN");
+		script.WriteLine(L"\tBLOCK \"StringFileInfo\"");
+		script.WriteLine(L"\tBEGIN");
+		script.WriteLine(L"\t\tBLOCK \"040004b0\"");
+		script.WriteLine(L"\t\tBEGIN");
+		if (state.version_information.CompanyName.Length()) script.WriteLine(L"\t\t\tVALUE \"CompanyName\", \"" + EscapeStringRc(state.version_information.CompanyName) + L"\"");
+		script.WriteLine(L"\t\t\tVALUE \"FileDescription\", \"" + EscapeStringRc(state.version_information.ApplicationName) + L"\"");
+		script.WriteLine(L"\t\t\tVALUE \"FileVersion\", \"" + string(state.version_information.VersionMajor) + L"." + string(state.version_information.VersionMinor) + L"\"");
+		script.WriteLine(L"\t\t\tVALUE \"InternalName\", \"" + EscapeStringRc(state.version_information.InternalName) + L"\"");
+		if (state.version_information.Copyright.Length()) script.WriteLine(L"\t\t\tVALUE \"LegalCopyright\", \"" + EscapeStringRc(state.version_information.Copyright) + L"\"");
+		if (is_library) {
+			script.WriteLine(L"\t\t\tVALUE \"OriginalFilename\", \"" + EscapeStringRc(state.version_information.InternalName) + L".dll\"");
+		} else {
+			script.WriteLine(L"\t\t\tVALUE \"OriginalFilename\", \"" + EscapeStringRc(state.version_information.InternalName) + L".exe\"");
+		}
+		script.WriteLine(L"\t\t\tVALUE \"ProductName\", \"" + EscapeStringRc(state.version_information.ApplicationName) + L"\"");
+		script.WriteLine(L"\t\t\tVALUE \"ProductVersion\", \"" + string(state.version_information.VersionMajor) + L"." + string(state.version_information.VersionMinor) + L"\"");
+		script.WriteLine(L"\t\tEND");
+		script.WriteLine(L"\tEND");
+		script.WriteLine(L"\tBLOCK \"VarFileInfo\"");
+		script.WriteLine(L"\tBEGIN");
+		script.WriteLine(L"\t\tVALUE \"Translation\", 0x400, 1200");
+		script.WriteLine(L"\tEND");
+		script.WriteLine(L"END");
+	}
+	buffer.Seek(0, Begin);
+	SafePointer<DataBlock> buffer_data = buffer.ReadAll();
 	if (!state.clean) {
 		try {
 			FileStream out(at, AccessRead, OpenExisting);
-			auto out_time = IO::DateTime::GetFileAlterTime(out.Handle());
-			if (out_time > state.project_time) return;
+			SafePointer<DataBlock> current_data = out.ReadAll();
+			if (*buffer_data == *current_data) return;
 		} catch (...) {}
 	}
 	if (!state.silent) console << L"Writing resource script file " << TextColor(Console::ColorCyan) << IO::Path::GetFileName(at) << TextColorDefault() << L"...";
 	try {
 		FileStream script_stream(at, AccessWrite, CreateAlways);
-		TextWriter script(&script_stream, Encoding::UTF16);
-		script.WriteEncodingSignature();
-		script.WriteLine(L"#include <Windows.h>");
-		script.LineFeed();
-		script.WriteLine(L"CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST \"" + EscapeStringRc(res_state.resource_manifest_file) + L"\"");
-		script.LineFeed();
-		if (res_state.icon_database.Length()) {
-			int index = 1;
-			for (auto & i : res_state.icon_database) {
-				script.WriteLine(string(index) + L" ICON \"" + EscapeStringRc(i.ConvertedPath) + L"\"");
-				index++;
-			}
-			script.LineFeed();
-		}
-		if (res_state.resources.Length()) {
-			for (auto & r : res_state.resources) {
-				auto inner_name = r.Locale.Length() ? (r.Name + L"-" + r.Locale) : r.Name;
-				script.WriteLine(inner_name + L" RCDATA \"" + EscapeStringRc(r.SourcePath) + L"\"");
-			}
-			script.LineFeed();
-		}
-		if (state.version_information.ApplicationName.Length()) {
-			auto is_library = configuration->GetValueBoolean(L"Library");
-			script.WriteLine(L"1 VERSIONINFO");
-			script.WriteLine(L"FILEVERSION " + string(state.version_information.VersionMajor) + L", " + string(state.version_information.VersionMinor) + L", " +
-				string(state.version_information.Subversion) + L", " + string(state.version_information.Build));
-			script.WriteLine(L"PRODUCTVERSION " + string(state.version_information.VersionMajor) + L", " + string(state.version_information.VersionMinor) + L", " +
-				string(state.version_information.Subversion) + L", " + string(state.version_information.Build));
-			script.WriteLine(L"FILEFLAGSMASK 0x3fL");
-			script.WriteLine(L"FILEFLAGS 0x0L");
-			script.WriteLine(L"FILEOS VOS_NT_WINDOWS32");
-			if (is_library) {
-				script.WriteLine(L"FILETYPE VFT_DLL");
-			} else {
-				script.WriteLine(L"FILETYPE VFT_APP");
-			}
-			script.WriteLine(L"FILESUBTYPE VFT2_UNKNOWN");
-			script.WriteLine(L"BEGIN");
-			script.WriteLine(L"\tBLOCK \"StringFileInfo\"");
-			script.WriteLine(L"\tBEGIN");
-			script.WriteLine(L"\t\tBLOCK \"040004b0\"");
-			script.WriteLine(L"\t\tBEGIN");
-			if (state.version_information.CompanyName.Length()) script.WriteLine(L"\t\t\tVALUE \"CompanyName\", \"" + EscapeStringRc(state.version_information.CompanyName) + L"\"");
-			script.WriteLine(L"\t\t\tVALUE \"FileDescription\", \"" + EscapeStringRc(state.version_information.ApplicationName) + L"\"");
-			script.WriteLine(L"\t\t\tVALUE \"FileVersion\", \"" + string(state.version_information.VersionMajor) + L"." + string(state.version_information.VersionMinor) + L"\"");
-			script.WriteLine(L"\t\t\tVALUE \"InternalName\", \"" + EscapeStringRc(state.version_information.InternalName) + L"\"");
-			if (state.version_information.Copyright.Length()) script.WriteLine(L"\t\t\tVALUE \"LegalCopyright\", \"" + EscapeStringRc(state.version_information.Copyright) + L"\"");
-			if (is_library) {
-				script.WriteLine(L"\t\t\tVALUE \"OriginalFilename\", \"" + EscapeStringRc(state.version_information.InternalName) + L".dll\"");
-			} else {
-				script.WriteLine(L"\t\t\tVALUE \"OriginalFilename\", \"" + EscapeStringRc(state.version_information.InternalName) + L".exe\"");
-			}
-			script.WriteLine(L"\t\t\tVALUE \"ProductName\", \"" + EscapeStringRc(state.version_information.ApplicationName) + L"\"");
-			script.WriteLine(L"\t\t\tVALUE \"ProductVersion\", \"" + string(state.version_information.VersionMajor) + L"." + string(state.version_information.VersionMinor) + L"\"");
-			script.WriteLine(L"\t\tEND");
-			script.WriteLine(L"\tEND");
-			script.WriteLine(L"\tBLOCK \"VarFileInfo\"");
-			script.WriteLine(L"\tBEGIN");
-			script.WriteLine(L"\t\tVALUE \"Translation\", 0x400, 1200");
-			script.WriteLine(L"\tEND");
-			script.WriteLine(L"END");
-		}
+		script_stream.WriteArray(buffer_data);
 	} catch (...) {
 		if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
 		throw;
@@ -426,7 +430,10 @@ int CompileResource(const string & source, const string & object, const string &
 				if (time > max_time) max_time = time;
 			}
 			FileStream out(object, AccessRead, OpenExisting);
+			FileStream src(source, AccessRead, OpenExisting);
 			auto out_time = IO::DateTime::GetFileAlterTime(out.Handle());
+			auto src_time = IO::DateTime::GetFileAlterTime(src.Handle());
+			if (src_time > max_time) max_time = src_time;
 			if (out_time > max_time) return ERTBT_SUCCESS;
 		} catch (...) {}
 	}
@@ -473,110 +480,114 @@ int CompileResource(const string & source, const string & object, const string &
 
 void GeneratePropertyList(const string & at, Console & console)
 {
+	MemoryStream buffer(0x1000);
+	TextWriter list(&buffer, Encoding::UTF8);
+	list.WriteLine(L"<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+	list.WriteLine(L"<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">");
+	list.WriteLine(L"<plist version=\"1.0\">");
+	list.WriteLine(L"<dict>");
+	if (!state.version_information.ApplicationName.Length()) state.version_information.ApplicationName = state.version_information.InternalName;
+	list.WriteLine(L"\t<key>CFBundleName</key>");
+	list.WriteLine(L"\t<string>" + EscapeStringXml(state.version_information.ApplicationName) + L"</string>");
+	list.WriteLine(L"\t<key>CFBundleDisplayName</key>");
+	list.WriteLine(L"\t<string>" + EscapeStringXml(state.version_information.ApplicationName) + L"</string>");
+	list.WriteLine(L"\t<key>CFBundleIdentifier</key>");
+	list.WriteLine(L"\t<string>com." + state.version_information.CompanyIdentifier + L"." + state.version_information.ApplicationIdentifier + L"</string>");
+	list.WriteLine(L"\t<key>CFBundleVersion</key>");
+	list.WriteLine(L"\t<string>" + string(state.version_information.VersionMajor) + L"." + string(state.version_information.VersionMinor) + L"." +
+		string(state.version_information.Subversion) + L"." + string(state.version_information.Build) + L"</string>");
+	list.WriteLine(L"\t<key>CFBundleDevelopmentRegion</key>");
+	list.WriteLine(L"\t<string>en</string>");
+	list.WriteLine(L"\t<key>CFBundlePackageType</key>");
+	list.WriteLine(L"\t<string>APPL</string>");
+	list.WriteLine(L"\t<key>CFBundleExecutable</key>");
+	list.WriteLine(L"\t<string>" + EscapeStringXml(state.version_information.InternalName) + L"</string>");
+	list.WriteLine(L"\t<key>CFBundleShortVersionString</key>");
+	list.WriteLine(L"\t<string>" + string(state.version_information.VersionMajor) + L"." + string(state.version_information.VersionMinor) + L"</string>");
+	if (res_state.application_icon) {
+		list.WriteLine(L"\t<key>CFBundleIconFile</key>");
+		list.WriteLine(L"\t<string>" + res_state.application_icon->Reference + L"</string>");
+	}
+	list.WriteLine(L"\t<key>NSPrincipalClass</key>");
+	list.WriteLine(L"\t<string>NSApplication</string>");
+	list.WriteLine(L"\t<key>CFBundleInfoDictionaryVersion</key>");
+	list.WriteLine(L"\t<string>6.0</string>");
+	list.WriteLine(L"\t<key>NSHumanReadableCopyright</key>");
+	list.WriteLine(L"\t<string>" + EscapeStringXml(state.version_information.Copyright) + L"</string>");
+	list.WriteLine(L"\t<key>LSMinimumSystemVersion</key>");
+	list.WriteLine(L"\t<string>10.10</string>");
+	if (res_state.property_disable_hidpi) {
+		list.WriteLine(L"\t<key>NSHighResolutionCapable</key>");
+		list.WriteLine(L"\t<false/>");
+	} else {
+		list.WriteLine(L"\t<key>NSHighResolutionMagnifyAllowed</key>");
+		list.WriteLine(L"\t<false/>");
+		list.WriteLine(L"\t<key>NSHighResolutionCapable</key>");
+		list.WriteLine(L"\t<true/>");
+	}
+	if (res_state.property_disable_dock_icon) {
+		list.WriteLine(L"\t<key>LSUIElement</key>");
+		list.WriteLine(L"\t<true/>");
+	}
+	list.WriteLine(L"\t<key>CFBundleSupportedPlatforms</key>");
+	list.WriteLine(L"\t<array>");
+	list.WriteLine(L"\t\t<string>MacOSX</string>");
+	list.WriteLine(L"\t</array>");
+	if (res_state.file_formats.Length()) {
+		int formats = 0, protocols = 0;
+		for (auto & f : res_state.file_formats) if (f.IsProtocol) protocols++; else formats++;
+		if (formats) {
+			list.WriteLine(L"\t<key>CFBundleDocumentTypes</key>");
+			list.WriteLine(L"\t<array>");
+			for (auto & f : res_state.file_formats) if (!f.IsProtocol) {
+				list.WriteLine(L"\t\t<dict>");
+				list.WriteLine(L"\t\t\t<key>CFBundleTypeExtensions</key>");
+				list.WriteLine(L"\t\t\t<array>");
+				list.WriteLine(L"\t\t\t\t<string>" + EscapeStringXml(f.Extension) + L"</string>");
+				list.WriteLine(L"\t\t\t</array>");
+				list.WriteLine(L"\t\t\t<key>CFBundleTypeName</key>");
+				list.WriteLine(L"\t\t\t<string>" + EscapeStringXml(f.Description) + L"</string>");
+				list.WriteLine(L"\t\t\t<key>CFBundleTypeIconFile</key>");
+				list.WriteLine(L"\t\t\t<string>" + EscapeStringXml(f.Icon->Reference) + L".icns</string>");
+				list.WriteLine(L"\t\t\t<key>CFBundleTypeRole</key>");
+				list.WriteLine(L"\t\t\t<string>" + string(f.CanCreate ? L"Editor" : L"Viewer") + L"</string>");
+				list.WriteLine(L"\t\t</dict>");
+			}
+			list.WriteLine(L"\t</array>");
+		}
+		if (protocols) {
+			list.WriteLine(L"\t<key>CFBundleURLTypes</key>");
+			list.WriteLine(L"\t<array>");
+			for (auto & f : res_state.file_formats) if (f.IsProtocol) {
+				list.WriteLine(L"\t\t<dict>");
+				list.WriteLine(L"\t\t\t<key>CFBundleURLSchemes</key>");
+				list.WriteLine(L"\t\t\t<array>");
+				list.WriteLine(L"\t\t\t\t<string>" + EscapeStringXml(f.Extension) + L"</string>");
+				list.WriteLine(L"\t\t\t</array>");
+				list.WriteLine(L"\t\t\t<key>CFBundleURLName</key>");
+				list.WriteLine(L"\t\t\t<string>" + EscapeStringXml(f.Description) + L"</string>");
+				list.WriteLine(L"\t\t\t<key>CFBundleTypeRole</key>");
+				list.WriteLine(L"\t\t\t<string>Viewer</string>");
+				list.WriteLine(L"\t\t</dict>");
+			}
+			list.WriteLine(L"\t</array>");
+		}
+	}
+	list.WriteLine(L"</dict>");
+	list.WriteLine(L"</plist>");
+	buffer.Seek(0, Begin);
+	SafePointer<DataBlock> buffer_data = buffer.ReadAll();
 	if (!state.clean) {
 		try {
 			FileStream out(at, AccessRead, OpenExisting);
-			auto out_time = IO::DateTime::GetFileAlterTime(out.Handle());
-			if (out_time > state.project_time) return;
+			SafePointer<DataBlock> current_data = out.ReadAll();
+			if (*buffer_data == *current_data) return;
 		} catch (...) {}
 	}
 	if (!state.silent) console << L"Writing bundle information file " << TextColor(Console::ColorCyan) << IO::Path::GetFileName(at) << TextColorDefault() << L"...";
 	try {
 		FileStream list_stream(at, AccessWrite, CreateAlways);
-		TextWriter list(&list_stream, Encoding::UTF8);
-		list.WriteLine(L"<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
-		list.WriteLine(L"<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">");
-		list.WriteLine(L"<plist version=\"1.0\">");
-		list.WriteLine(L"<dict>");
-		if (!state.version_information.ApplicationName.Length()) state.version_information.ApplicationName = state.version_information.InternalName;
-		list.WriteLine(L"\t<key>CFBundleName</key>");
-		list.WriteLine(L"\t<string>" + EscapeStringXml(state.version_information.ApplicationName) + L"</string>");
-		list.WriteLine(L"\t<key>CFBundleDisplayName</key>");
-		list.WriteLine(L"\t<string>" + EscapeStringXml(state.version_information.ApplicationName) + L"</string>");
-		list.WriteLine(L"\t<key>CFBundleIdentifier</key>");
-		list.WriteLine(L"\t<string>com." + state.version_information.CompanyIdentifier + L"." + state.version_information.ApplicationIdentifier + L"</string>");
-		list.WriteLine(L"\t<key>CFBundleVersion</key>");
-		list.WriteLine(L"\t<string>" + string(state.version_information.VersionMajor) + L"." + string(state.version_information.VersionMinor) + L"." +
-			string(state.version_information.Subversion) + L"." + string(state.version_information.Build) + L"</string>");
-		list.WriteLine(L"\t<key>CFBundleDevelopmentRegion</key>");
-		list.WriteLine(L"\t<string>en</string>");
-		list.WriteLine(L"\t<key>CFBundlePackageType</key>");
-		list.WriteLine(L"\t<string>APPL</string>");
-		list.WriteLine(L"\t<key>CFBundleExecutable</key>");
-		list.WriteLine(L"\t<string>" + EscapeStringXml(state.version_information.InternalName) + L"</string>");
-		list.WriteLine(L"\t<key>CFBundleShortVersionString</key>");
-		list.WriteLine(L"\t<string>" + string(state.version_information.VersionMajor) + L"." + string(state.version_information.VersionMinor) + L"</string>");
-		if (res_state.application_icon) {
-			list.WriteLine(L"\t<key>CFBundleIconFile</key>");
-			list.WriteLine(L"\t<string>" + res_state.application_icon->Reference + L"</string>");
-		}
-		list.WriteLine(L"\t<key>NSPrincipalClass</key>");
-		list.WriteLine(L"\t<string>NSApplication</string>");
-		list.WriteLine(L"\t<key>CFBundleInfoDictionaryVersion</key>");
-		list.WriteLine(L"\t<string>6.0</string>");
-		list.WriteLine(L"\t<key>NSHumanReadableCopyright</key>");
-		list.WriteLine(L"\t<string>" + EscapeStringXml(state.version_information.Copyright) + L"</string>");
-		list.WriteLine(L"\t<key>LSMinimumSystemVersion</key>");
-		list.WriteLine(L"\t<string>10.10</string>");
-		if (res_state.property_disable_hidpi) {
-			list.WriteLine(L"\t<key>NSHighResolutionCapable</key>");
-			list.WriteLine(L"\t<false/>");
-		} else {
-			list.WriteLine(L"\t<key>NSHighResolutionMagnifyAllowed</key>");
-			list.WriteLine(L"\t<false/>");
-			list.WriteLine(L"\t<key>NSHighResolutionCapable</key>");
-			list.WriteLine(L"\t<true/>");
-		}
-		if (res_state.property_disable_dock_icon) {
-			list.WriteLine(L"\t<key>LSUIElement</key>");
-			list.WriteLine(L"\t<true/>");
-		}
-		list.WriteLine(L"\t<key>CFBundleSupportedPlatforms</key>");
-		list.WriteLine(L"\t<array>");
-		list.WriteLine(L"\t\t<string>MacOSX</string>");
-		list.WriteLine(L"\t</array>");
-		if (res_state.file_formats.Length()) {
-			int formats = 0, protocols = 0;
-			for (auto & f : res_state.file_formats) if (f.IsProtocol) protocols++; else formats++;
-			if (formats) {
-				list.WriteLine(L"\t<key>CFBundleDocumentTypes</key>");
-				list.WriteLine(L"\t<array>");
-				for (auto & f : res_state.file_formats) if (!f.IsProtocol) {
-					list.WriteLine(L"\t\t<dict>");
-					list.WriteLine(L"\t\t\t<key>CFBundleTypeExtensions</key>");
-					list.WriteLine(L"\t\t\t<array>");
-					list.WriteLine(L"\t\t\t\t<string>" + EscapeStringXml(f.Extension) + L"</string>");
-					list.WriteLine(L"\t\t\t</array>");
-					list.WriteLine(L"\t\t\t<key>CFBundleTypeName</key>");
-					list.WriteLine(L"\t\t\t<string>" + EscapeStringXml(f.Description) + L"</string>");
-					list.WriteLine(L"\t\t\t<key>CFBundleTypeIconFile</key>");
-					list.WriteLine(L"\t\t\t<string>" + EscapeStringXml(f.Icon->Reference) + L".icns</string>");
-					list.WriteLine(L"\t\t\t<key>CFBundleTypeRole</key>");
-					list.WriteLine(L"\t\t\t<string>" + string(f.CanCreate ? L"Editor" : L"Viewer") + L"</string>");
-					list.WriteLine(L"\t\t</dict>");
-				}
-				list.WriteLine(L"\t</array>");
-			}
-			if (protocols) {
-				list.WriteLine(L"\t<key>CFBundleURLTypes</key>");
-				list.WriteLine(L"\t<array>");
-				for (auto & f : res_state.file_formats) if (f.IsProtocol) {
-					list.WriteLine(L"\t\t<dict>");
-					list.WriteLine(L"\t\t\t<key>CFBundleURLSchemes</key>");
-					list.WriteLine(L"\t\t\t<array>");
-					list.WriteLine(L"\t\t\t\t<string>" + EscapeStringXml(f.Extension) + L"</string>");
-					list.WriteLine(L"\t\t\t</array>");
-					list.WriteLine(L"\t\t\t<key>CFBundleURLName</key>");
-					list.WriteLine(L"\t\t\t<string>" + EscapeStringXml(f.Description) + L"</string>");
-					list.WriteLine(L"\t\t\t<key>CFBundleTypeRole</key>");
-					list.WriteLine(L"\t\t\t<string>Viewer</string>");
-					list.WriteLine(L"\t\t</dict>");
-				}
-				list.WriteLine(L"\t</array>");
-			}
-		}
-		list.WriteLine(L"</dict>");
-		list.WriteLine(L"</plist>");
+		list_stream.WriteArray(buffer_data);
 	} catch (...) {
 		if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
 		throw;

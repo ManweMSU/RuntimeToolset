@@ -553,7 +553,9 @@ int BuildProject(Console & console)
 	if (error) return error;
 	if (state.pathout) console.WriteLine(state.output_executable);
 	if (!state.pathout) {
-		string internal_output = IO::ExpandPath(state.project_object_path + L"/" + state.project_output_name + L".tmp");
+		string internal_extension = IO::Path::GetExtension(state.output_executable);
+		if (internal_extension.Length()) internal_extension = L"." + internal_extension; else internal_extension = L".bin";
+		string internal_output = IO::ExpandPath(state.project_object_path + L"/" + state.project_output_name + internal_extension);
 		string link_log = IO::ExpandPath(state.project_object_path + L"/" + state.project_output_name + L".linker.log");
 		error = CopyAttachments(console);
 		if (error) return error;

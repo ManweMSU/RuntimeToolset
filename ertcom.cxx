@@ -275,6 +275,8 @@ int LoadProject(Console & console)
 		project_initial_config->CreateNode(L"CompileList");
 		project_initial_config->CreateValue(L"CompileList/A", RegistryValueType::String);
 		project_initial_config->SetValue(L"CompileList/A", state.project_file_path);
+		project_initial_config->CreateValue(L"NoHiDPI", RegistryValueType::Boolean);
+		project_initial_config->SetValue(L"NoHiDPI", true);
 		state.project_time = 0;
 	} else {
 		try {

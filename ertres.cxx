@@ -602,14 +602,9 @@ int BuildBundle(Console & console)
 	ClearDirectory(bundle);
 	IO::CreateDirectoryTree(bundle + L"/Contents/MacOS");
 	IO::CreateDirectoryTree(bundle + L"/Contents/Resources");
-	Array<string> locales(0x10);
-	locales << L"en";
-	for (auto & r : res_state.resources) {
-		if (!r.Locale.Length()) continue;
-		bool added = false;
-		for (auto & l : locales) if (string::CompareIgnoreCase(l, r.Locale) == 0) { added = true; break; }
-		if (!added) locales << r.Locale;
-	}
+	Array<string> locales = state.project->GetValueString(L"Languages").Split(L',');
+	for (int i = locales.Length() - 1; i >= 0; i--) if (!locales[i].Length()) locales.Remove(i);
+	if (!locales.Length()) locales << L"en";
 	for (auto & l : locales) IO::CreateDirectoryTree(bundle + L"/Contents/Resources/" + l + L".lproj");
 	try {
 		if (!CopyFile(res_state.resource_manifest_file, bundle + L"/Contents/Info.plist")) throw Exception();

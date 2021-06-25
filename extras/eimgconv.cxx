@@ -3,6 +3,7 @@
 using namespace Engine;
 using namespace Engine::Streaming;
 using namespace Engine::Codec;
+using namespace Engine::IO;
 using namespace Engine::IO::ConsoleControl;
 
 bool Save(Image * image, const string & as, const string & codec, Console & console)
@@ -14,19 +15,19 @@ bool Save(Image * image, const string & as, const string & codec, Console & cons
 			stream = new FileStream(as, AccessReadWrite, CreateAlways);
 		}
 		catch (...) {
-			console << TextColor(Console::ColorRed) << L"Failed." << TextColorDefault() << LineFeed();
-			console << TextColor(Console::ColorRed) << L"Can not write the file." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Failed." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Can not write the file." << TextColorDefault() << LineFeed();
 			throw;
 		}
 		try {
 			EncodeImage(stream, image, codec);
 		}
 		catch (...) {
-			console << TextColor(Console::ColorRed) << L"Failed." << TextColorDefault() << LineFeed();
-			console << TextColor(Console::ColorRed) << L"Can not encode the image." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Failed." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Can not encode the image." << TextColorDefault() << LineFeed();
 			throw;
 		}
-		console << TextColor(Console::ColorGreen) << L"Succeed." << TextColorDefault() << LineFeed();
+		console << TextColor(ConsoleColor::Green) << L"Succeed." << TextColorDefault() << LineFeed();
 	} catch (...) { return false; }
 	return true;
 }
@@ -87,7 +88,7 @@ int Main(void)
 				} else if (string::CompareIgnoreCase(args->ElementAt(i), L":eiwv") == 0) {
 					codec = L"EIWV";
 				} else {
-					console << TextColor(Console::ColorRed) << L"Invalid command line argument." << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Red) << L"Invalid command line argument." << TextColorDefault() << LineFeed();
 					return 1;
 				}
 			} else {
@@ -96,31 +97,31 @@ int Main(void)
 				} else if (!output.Length()) {
 					output = args->ElementAt(i);
 				} else {
-					console << TextColor(Console::ColorRed) << L"Invalid command line argument." << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Red) << L"Invalid command line argument." << TextColorDefault() << LineFeed();
 					return 1;
 				}
 			}
 		}
 		if (!source.Length()) {
-			console << TextColor(Console::ColorRed) << L"No input in command line." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"No input in command line." << TextColorDefault() << LineFeed();
 			return 1;
 		}
 		if (!codec.Length()) {
-			console << TextColor(Console::ColorRed) << L"No format in command line." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"No format in command line." << TextColorDefault() << LineFeed();
 			return 1;
 		}
 		if (!output.Length()) {
-			console << TextColor(Console::ColorRed) << L"No output in command line." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"No output in command line." << TextColorDefault() << LineFeed();
 			return 1;
 		}
 		source = IO::ExpandPath(source);
 		output = IO::ExpandPath(output);
-		UI::Windows::InitializeCodecCollection();
+		Codec::InitializeDefaultCodecs();
 		try {
 			SafePointer<Image> image = new Image;
 			SafePointer< Array<string> > files = IO::Search::GetFiles(source);
 			if (!files->Length()) {
-				console << TextColor(Console::ColorRed) << L"No files found." << TextColorDefault() << LineFeed();
+				console << TextColor(ConsoleColor::Red) << L"No files found." << TextColorDefault() << LineFeed();
 				return 1;
 			}
 			for (int i = 0; i < files->Length(); i++) {
@@ -132,20 +133,20 @@ int Main(void)
 					input = new FileStream(name, AccessRead, OpenExisting);
 				}
 				catch (...) {
-					console << TextColor(Console::ColorRed) << L"Failed." << TextColorDefault() << LineFeed();
-					console << TextColor(Console::ColorRed) << L"Can not access the file." << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Red) << L"Failed." << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Red) << L"Can not access the file." << TextColorDefault() << LineFeed();
 					return 1;
 				}
 				try {
 					decoded = DecodeImage(input);
 				}
 				catch (...) {
-					console << TextColor(Console::ColorRed) << L"Failed." << TextColorDefault() << LineFeed();
-					console << TextColor(Console::ColorRed) << L"Can not decode the file." << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Red) << L"Failed." << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Red) << L"Can not decode the file." << TextColorDefault() << LineFeed();
 					return 1;
 				}
 				for (int j = 0; j < decoded->Frames.Length(); j++) image->Frames.Append(decoded->Frames.ElementAt(j));
-				console << TextColor(Console::ColorGreen) << L"Succeed." << TextColorDefault() << LineFeed();
+				console << TextColor(ConsoleColor::Green) << L"Succeed." << TextColorDefault() << LineFeed();
 			}
 			if (decompose) {
 				try { IO::CreateDirectory(output); } catch (...) {}
@@ -159,7 +160,7 @@ int Main(void)
 			}
 		}
 		catch (...) {
-			console << TextColor(Console::ColorRed) << L"Internal error." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Internal error." << TextColorDefault() << LineFeed();
 			return 1;
 		}
 	}

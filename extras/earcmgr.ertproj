@@ -8,7 +8,7 @@ VersionInformation {
 	ApplicationName = "Engine Archive Manager"
 	CompanyName = "Engine Software"
 	Copyright = "© Engine Software. 2018-2021"
-	Version = "1.0.3.10"
+	Version = "1.0.4.11"
 	InternalName = "earcmgr"
 	ApplicationIdentifier = "Engine.ArchiveManager"
 	CompanyIdentifier = "EngineSoftware"

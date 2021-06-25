@@ -3,6 +3,7 @@
 using namespace Engine;
 using namespace Engine::Streaming;
 using namespace Engine::Storage;
+using namespace Engine::IO;
 using namespace Engine::IO::ConsoleControl;
 
 enum class TimeClass { Unset = 0, Explicit = 1, Automatic = 2, InheritSource = 3, ArchiveTime = 4 };
@@ -254,41 +255,41 @@ public:
 	bool Archive(Console & console)
 	{
 		Time started = Time::GetCurrentTime();
-		console << L"Archivation started at " << TextColor(Console::ColorCyan) << started.ToLocal().ToString() << TextColorDefault() << L"." << LineFeed();
-		console << L"Mode: " << TextColor(Console::ColorMagenta);
+		console << L"Archivation started at " << TextColor(ConsoleColor::Cyan) << started.ToLocal().ToString() << TextColorDefault() << L"." << LineFeed();
+		console << L"Mode: " << TextColor(ConsoleColor::Magenta);
 		if (ArcFormat == ArchiveFormat::Short) console << L"format: 32-bit, ";
 		else if (ArcFormat == ArchiveFormat::Long) console << L"format: 64-bit, ";
 		if (ExcludeMetadata) console << L"no metadata";
 		else console << L"with metadata";
 		console << TextColorDefault() << L"." << LineFeed();
 		console << L"Initializing subsystem...";
-		SafePointer<Tasks::ThreadPool> pool;
+		SafePointer<ThreadPool> pool;
 		SafePointer<FileStream> arc_stream;
 		SafePointer<NewArchive> arc;
 		string file_name;
 		try {
-			pool = new Tasks::ThreadPool();
+			pool = new ThreadPool;
 		}
-		catch (...) { console << TextColor(Console::ColorRed) << L"Failed to set up the thread pool." << TextColorDefault() << LineFeed(); return false; }
+		catch (...) { console << TextColor(ConsoleColor::Red) << L"Failed to set up the thread pool." << TextColorDefault() << LineFeed(); return false; }
 		try {
 			file_name = IO::ExpandPath(IO::Path::GetDirectory(ListName) + L"/" + IO::Path::GetFileNameWithoutExtension(ListName) + L".ecsa");
 			arc_stream = new FileStream(file_name, AccessReadWrite, CreateAlways);
 		}
-		catch (...) { console << TextColor(Console::ColorRed) << L"Failed to create a file." << TextColorDefault() << LineFeed(); return false; }
+		catch (...) { console << TextColor(ConsoleColor::Red) << L"Failed to create a file." << TextColorDefault() << LineFeed(); return false; }
 		try {
 			uint flags = 0;
 			if (!ExcludeMetadata) flags |= NewArchiveFlags::CreateMetadata;
 			if (ArcFormat == ArchiveFormat::Short) flags |= NewArchiveFlags::UseFormat32;
 			arc = CreateArchive(arc_stream, Files.Length(), flags);
 		}
-		catch (...) { console << TextColor(Console::ColorRed) << L"Failed to create a new archive." << TextColorDefault() << LineFeed(); return false; }
-		console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
-		console << L"Writing an archive at \"" << TextColor(Console::ColorCyan) << file_name << TextColorDefault() << L"\"." << LineFeed();
-		console << TextColor(Console::ColorYellow) << L"0%" << TextColorDefault() << LineFeed();
+		catch (...) { console << TextColor(ConsoleColor::Red) << L"Failed to create a new archive." << TextColorDefault() << LineFeed(); return false; }
+		console << TextColor(ConsoleColor::Green) << L"Succeed" << TextColorDefault() << LineFeed();
+		console << L"Writing an archive at \"" << TextColor(ConsoleColor::Cyan) << file_name << TextColorDefault() << L"\"." << LineFeed();
+		console << TextColor(ConsoleColor::Yellow) << L"0%" << TextColorDefault() << LineFeed();
 		for (int i = 0; i < Files.Length(); i++) {
-			console << L"Packing file with name \"" << TextColor(Console::ColorCyan) << Files[i].Name << TextColorDefault() <<
-				L"\" and ID " << TextColor(Console::ColorCyan) << Files[i].Type << TextColorDefault() <<
-				L" " << TextColor(Console::ColorCyan) << Files[i].ID << TextColorDefault() << L"...";
+			console << L"Packing file with name \"" << TextColor(ConsoleColor::Cyan) << Files[i].Name << TextColorDefault() <<
+				L"\" and ID " << TextColor(ConsoleColor::Cyan) << Files[i].Type << TextColorDefault() <<
+				L" " << TextColor(ConsoleColor::Cyan) << Files[i].ID << TextColorDefault() << L"...";
 			try {
 				SafePointer<Stream> source;
 				FileStream * file_stream;
@@ -348,12 +349,12 @@ public:
 					arc->SetFileData(i + 1, source);
 				}
 			}
-			catch (...) { console << TextColor(Console::ColorRed) << L"Failed." << TextColorDefault() << LineFeed(); return false; }
-			console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
-			console << TextColor(Console::ColorYellow) << ((i + 1) * 100 / Files.Length()) << L"%" << TextColorDefault() << LineFeed();
+			catch (...) { console << TextColor(ConsoleColor::Red) << L"Failed." << TextColorDefault() << LineFeed(); return false; }
+			console << TextColor(ConsoleColor::Green) << L"Succeed" << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Yellow) << ((i + 1) * 100 / Files.Length()) << L"%" << TextColorDefault() << LineFeed();
 		}
 		arc->Finalize();
-		console << TextColor(Console::ColorGreen) << L"Finished with " << (Time::GetCurrentTime() - started).ToShortString() << L"." << TextColorDefault() << LineFeed();
+		console << TextColor(ConsoleColor::Green) << L"Finished with " << (Time::GetCurrentTime() - started).ToShortString() << L"." << TextColorDefault() << LineFeed();
 		return true;
 	}
 };
@@ -505,18 +506,18 @@ bool Execute(Array<Syntax::Token> & command, IO::Console & console)
 				return false;
 			} else if (string::CompareIgnoreCase(command[0].Content, L"save") == 0) {
 				console << L"Saving the archive list...";
-				if (list.Save()) console << TextColor(Console::ColorGreen) << L"Succeed." << TextColorDefault() << LineFeed();
-				else { console << TextColor(Console::ColorRed) << L"Failed." << TextColorDefault() << LineFeed(); return false; }
+				if (list.Save()) console << TextColor(ConsoleColor::Green) << L"Succeed." << TextColorDefault() << LineFeed();
+				else { console << TextColor(ConsoleColor::Red) << L"Failed." << TextColorDefault() << LineFeed(); return false; }
 			} else if (string::CompareIgnoreCase(command[0].Content, L"finish") == 0) {
 				console << L"Saving the archive list...";
 				if (list.Save()) {
-					console << TextColor(Console::ColorGreen) << L"Succeed." << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Green) << L"Succeed." << TextColorDefault() << LineFeed();
 					exiting = true;
-				} else console << TextColor(Console::ColorRed) << L"Failed." << TextColorDefault() << LineFeed();
+				} else console << TextColor(ConsoleColor::Red) << L"Failed." << TextColorDefault() << LineFeed();
 				return false;
 			} else if (string::CompareIgnoreCase(command[0].Content, L"rename") == 0 && command.Length() >= 2) {
 				list.ListName = IO::ExpandPath(command[1].Content);
-				console << L"Repositioned to \"" << TextColor(Console::ColorYellow) << list.ListName << TextColorDefault() << L"\"." << LineFeed();
+				console << L"Repositioned to \"" << TextColor(ConsoleColor::Yellow) << list.ListName << TextColorDefault() << L"\"." << LineFeed();
 				console << L"Next \"save\" calls will use this name." << LineFeed();
 			} else if (string::CompareIgnoreCase(command[0].Content, L"list") == 0) {
 				bool sel_only = false;
@@ -581,13 +582,13 @@ bool Execute(Array<Syntax::Token> & command, IO::Console & console)
 					}
 				}
 				selection = indicies;
-				console << L"Selected " << TextColor(Console::ColorCyan) << indicies.Length() << TextColorDefault() << L" files." << LineFeed();
+				console << L"Selected " << TextColor(ConsoleColor::Cyan) << indicies.Length() << TextColorDefault() << L" files." << LineFeed();
 			} else if (string::CompareIgnoreCase(command[0].Content, L"invert") == 0) {
 				Array<int> indicies(0x100);
 				for (int i = 0; i < list.Files.Length(); i++) indicies << i;
 				for (int i = selection.Length() - 1; i >= 0; i--) indicies.Remove(selection[i]);
 				selection = indicies;
-				console << L"Selected " << TextColor(Console::ColorCyan) << indicies.Length() << TextColorDefault() << L" files." << LineFeed();
+				console << L"Selected " << TextColor(ConsoleColor::Cyan) << indicies.Length() << TextColorDefault() << L" files." << LineFeed();
 			} else if (string::CompareIgnoreCase(command[0].Content, L"exclude") == 0) {
 				int count = 0;
 				for (int i = selection.Length() - 1; i >= 0; i--) {
@@ -595,7 +596,7 @@ bool Execute(Array<Syntax::Token> & command, IO::Console & console)
 					count++;
 				}
 				selection.Clear();
-				console << L"Excluded " << TextColor(Console::ColorCyan) << count << TextColorDefault() << L" files." << LineFeed();
+				console << L"Excluded " << TextColor(ConsoleColor::Cyan) << count << TextColorDefault() << L" files." << LineFeed();
 			} else if (string::CompareIgnoreCase(command[0].Content, L"append") == 0 && command.Length() > 1) {
 				selection.Clear();
 				bool rec = false;
@@ -618,9 +619,9 @@ bool Execute(Array<Syntax::Token> & command, IO::Console & console)
 					count++;
 					selection << list.Files.Length();
 					list.Files << ent;
-					console << L"Added \"" << TextColor(Console::ColorCyan) << src << TextColorDefault() << L"\"." << LineFeed();
+					console << L"Added \"" << TextColor(ConsoleColor::Cyan) << src << TextColorDefault() << L"\"." << LineFeed();
 				}
-				console << L"Added " << TextColor(Console::ColorCyan) << count << TextColorDefault() << L" files." << LineFeed();
+				console << L"Added " << TextColor(ConsoleColor::Cyan) << count << TextColorDefault() << L" files." << LineFeed();
 			} else if (string::CompareIgnoreCase(command[0].Content, L"create") == 0) {
 				selection.Clear();
 				ArchiveEntity ent;
@@ -634,11 +635,11 @@ bool Execute(Array<Syntax::Token> & command, IO::Console & console)
 				if (list.Format == ListFormat::Text) lf = L"text extended";
 				else if (list.Format == ListFormat::Binary) lf = L"binary extended";
 				else if (list.Format == ListFormat::Legacy) lf = L"text compatible";
-				console << L"List at \"" << TextColor(Console::ColorCyan) << list.ListName << TextColorDefault() << L"\"," << LineFeed();
-				console << TextColor(Console::ColorCyan) << list.Files.Length() << TextColorDefault() << L" files," << LineFeed();
-				console << L"metadata usage: " << TextColor(Console::ColorCyan) << (list.ExcludeMetadata ? L"exclude," : L"include,") << TextColorDefault() << LineFeed();
-				console << L"archive format: " << TextColor(Console::ColorCyan) << af << TextColorDefault() << L"," << LineFeed();
-				console << L"list format   : " << TextColor(Console::ColorCyan) << lf << TextColorDefault() << L"." << LineFeed();
+				console << L"List at \"" << TextColor(ConsoleColor::Cyan) << list.ListName << TextColorDefault() << L"\"," << LineFeed();
+				console << TextColor(ConsoleColor::Cyan) << list.Files.Length() << TextColorDefault() << L" files," << LineFeed();
+				console << L"metadata usage: " << TextColor(ConsoleColor::Cyan) << (list.ExcludeMetadata ? L"exclude," : L"include,") << TextColorDefault() << LineFeed();
+				console << L"archive format: " << TextColor(ConsoleColor::Cyan) << af << TextColorDefault() << L"," << LineFeed();
+				console << L"list format   : " << TextColor(ConsoleColor::Cyan) << lf << TextColorDefault() << L"." << LineFeed();
 			} else if (string::CompareIgnoreCase(command[0].Content, L"set") == 0 && command.Length() > 2) {
 				if (string::CompareIgnoreCase(command[1].Content, L"metadata") == 0) {
 					if (string::CompareIgnoreCase(command[2].Content, L"include") == 0) list.ExcludeMetadata = false;
@@ -662,7 +663,7 @@ bool Execute(Array<Syntax::Token> & command, IO::Console & console)
 								list.Files[selection[i]].SourceData = data;
 								list.Files[selection[i]].SourceFile = L"";
 							}
-						} catch (...) { console << TextColor(Console::ColorRed) << L"Error setting embeded data." << TextColorDefault() << LineFeed(); return false; }
+						} catch (...) { console << TextColor(ConsoleColor::Red) << L"Error setting embeded data." << TextColorDefault() << LineFeed(); return false; }
 					} else {
 						for (int i = 0; i < selection.Length(); i++) {
 							list.Files[selection[i]].SourceData.Clear();
@@ -720,7 +721,7 @@ bool Execute(Array<Syntax::Token> & command, IO::Console & console)
 						else if (string::CompareIgnoreCase(command[p].Content, L"rle32") == 0) method = CompressionMethod::RunLengthEncoding32bit;
 						else if (string::CompareIgnoreCase(command[p].Content, L"rle64") == 0) method = CompressionMethod::RunLengthEncoding64bit;
 						else if (string::CompareIgnoreCase(command[p].Content, L"rle128") == 0) method = CompressionMethod::RunLengthEncoding128bit;
-						else { console << TextColor(Console::ColorRed) << L"Unknown method." << TextColorDefault() << LineFeed(); return false; }
+						else { console << TextColor(ConsoleColor::Red) << L"Unknown method." << TextColorDefault() << LineFeed(); return false; }
 						p++;
 						chain = chain.Append(method);
 					}
@@ -742,7 +743,7 @@ bool Execute(Array<Syntax::Token> & command, IO::Console & console)
 					else if (string::CompareIgnoreCase(command[2].Content, L"no") == 0) value = false;
 					for (int i = 0; i < selection.Length(); i++) list.Files[selection[i]].AddMetadata = value;
 				} else {
-					console << TextColor(Console::ColorRed) << L"Unknown property." << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Red) << L"Unknown property." << TextColorDefault() << LineFeed();
 					return false;
 				}
 			} else if (string::CompareIgnoreCase(command[0].Content, L"attr") == 0 && command.Length() > 2) {
@@ -798,7 +799,7 @@ bool Execute(Array<Syntax::Token> & command, IO::Console & console)
 						file.Name = file.Name.Replace(text, with);
 					}
 				} else {
-					console << TextColor(Console::ColorRed) << L"Unknown operation." << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Red) << L"Unknown operation." << TextColorDefault() << LineFeed();
 					return false;
 				}
 			} else if (string::CompareIgnoreCase(command[0].Content, L"arc") == 0) {
@@ -852,30 +853,30 @@ int Main(void)
 					break_on_error = true;
 				}
 				catch (...) {
-					console << TextColor(Console::ColorRed) << L"Failed to attach command source." << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Red) << L"Failed to attach command source." << TextColorDefault() << LineFeed();
 					return 1;
 				}
 			} else if (args->ElementAt(i)[0] != L':') {
 				list_file = args->ElementAt(i);
 			} else {
-				console << TextColor(Console::ColorRed) << L"Invalid command line option." << TextColorDefault() << LineFeed();
+				console << TextColor(ConsoleColor::Red) << L"Invalid command line option." << TextColorDefault() << LineFeed();
 				return 1;
 			}
 		}
 		if (!list_file.Length()) {
-			console << TextColor(Console::ColorRed) << L"No list file name specified." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"No list file name specified." << TextColorDefault() << LineFeed();
 			return 1;
 		}
 		try {
 			if (create) {
 				list.ListName = IO::ExpandPath(list_file);
-				console << TextColor(Console::ColorYellow) << L"Created an empty list." << TextColorDefault() << LineFeed();
+				console << TextColor(ConsoleColor::Yellow) << L"Created an empty list." << TextColorDefault() << LineFeed();
 			} else {
 				if (!ArchiveList::Load(list, list_file)) {
-					console << TextColor(Console::ColorRed) << L"Failed to open an archive list." << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Red) << L"Failed to open an archive list." << TextColorDefault() << LineFeed();
 					return 1;
 				}
-				console << TextColor(Console::ColorYellow) << L"Loaded a list with " << list.Files.Length() << L" files." << TextColorDefault() << LineFeed();
+				console << TextColor(ConsoleColor::Yellow) << L"Loaded a list with " << list.Files.Length() << L" files." << TextColorDefault() << LineFeed();
 			}
 			if (archive) {
 				console << LineFeed();
@@ -885,7 +886,7 @@ int Main(void)
 			command_spelling.IsolatedChars << L'?';
 			while (!input->EofReached()) {
 				if (prompt) {
-					console << LineFeed() << IO::Path::GetFileName(list.ListName).UpperCase() << TextColor(Console::ColorMagenta) << L"> " << TextColorDefault();
+					console << LineFeed() << IO::Path::GetFileName(list.ListName).UpperCase() << TextColor(ConsoleColor::Magenta) << L"> " << TextColorDefault();
 				}
 				string command = input->ReadLine();
 				if (!command.Length()) continue;
@@ -900,22 +901,22 @@ int Main(void)
 				}
 				catch (Syntax::ParserSpellingException & e) {
 					if (break_on_error) {
-						console << TextColor(Console::ColorRed) << command + L": Invalid command syntax." << TextColorDefault() << LineFeed();
+						console << TextColor(ConsoleColor::Red) << command + L": Invalid command syntax." << TextColorDefault() << LineFeed();
 						break;
 					}
-					console << TextColor(Console::ColorYellow) << L"Invalid command syntax. Type \"?\"." << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Yellow) << L"Invalid command syntax. Type \"?\"." << TextColorDefault() << LineFeed();
 				}
 				catch (...) {
 					if (break_on_error) {
-						console << TextColor(Console::ColorRed) << command + L": Failed to execute the command." << TextColorDefault() << LineFeed();
+						console << TextColor(ConsoleColor::Red) << command + L": Failed to execute the command." << TextColorDefault() << LineFeed();
 						break;
 					}
-					console << TextColor(Console::ColorYellow) << L"Failed to execute the command." << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Yellow) << L"Failed to execute the command." << TextColorDefault() << LineFeed();
 				}
 			}
 		}
 		catch (...) {
-			console << TextColor(Console::ColorRed) << L"Internal error." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Internal error." << TextColorDefault() << LineFeed();
 			return 1;
 		}
 	}

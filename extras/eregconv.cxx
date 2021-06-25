@@ -4,6 +4,7 @@
 using namespace Engine;
 using namespace Engine::Streaming;
 using namespace Engine::Storage;
+using namespace Engine::IO;
 using namespace Engine::IO::ConsoleControl;
 
 enum class Operation { View, ToText, ToBinary };
@@ -59,12 +60,12 @@ int Main(void)
 				} else if (string::CompareIgnoreCase(args->ElementAt(i + 1), L"utf32") == 0) {
 					encoding = Encoding::UTF32;
 				} else {
-					console << TextColor(Console::ColorRed) << L"Unknown text encoding \"" + args->ElementAt(i + 1) + L"\"." << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Red) << L"Unknown text encoding \"" + args->ElementAt(i + 1) + L"\"." << TextColorDefault() << LineFeed();
 					return 1;
 				}
 				i++;
 			} else {
-				console << TextColor(Console::ColorRed) << L"Invalid command line syntax." << TextColorDefault() << LineFeed();
+				console << TextColor(ConsoleColor::Red) << L"Invalid command line syntax." << TextColorDefault() << LineFeed();
 				return 1;
 			}
 		}
@@ -92,7 +93,7 @@ int Main(void)
 			}
 		}
 		catch (Syntax::ParserSpellingException & e) {
-			console << TextColor(Console::ColorRed) << L"Syntax error: " << e.Comments << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Syntax error: " << e.Comments << TextColorDefault() << LineFeed();
 			int line = 1;
 			int lbegin = 0;
 			for (int i = 0; i < e.Position; i++) if (inner[i] == L'\n') { line++; lbegin = i + 1; }
@@ -100,16 +101,16 @@ int Main(void)
 			while (lend < inner.Length() && inner[lend] != L'\n') lend++;
 			if (lend < inner.Length()) lend--;
 			string errstr = inner.Fragment(lbegin, lend - lbegin).Replace(L'\t', L' ');
-			console << TextColor(Console::ColorRed) << errstr << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << errstr << TextColorDefault() << LineFeed();
 			int posrel = e.Position - lbegin;
-			console << TextColor(Console::ColorDarkRed);
+			console << TextColor(ConsoleColor::DarkRed);
 			for (int i = 0; i < posrel; i++) console << L" ";
 			console << L"^" << TextColorDefault() << LineFeed();
-			console << TextColor(Console::ColorRed) << L"At line #" << line << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"At line #" << line << TextColorDefault() << LineFeed();
 			return 1;
 		}
 		catch (Syntax::ParserSyntaxException & e) {
-			console << TextColor(Console::ColorRed) << L"Syntax error: " << e.Comments << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Syntax error: " << e.Comments << TextColorDefault() << LineFeed();
 			int token_begin = tokens->ElementAt(e.Position).SourcePosition;
 			int token_end = inner.Length();
 			if (e.Position < tokens->Length() - 1) token_end = tokens->ElementAt(e.Position + 1).SourcePosition;
@@ -120,26 +121,26 @@ int Main(void)
 			while (lend < inner.Length() && inner[lend] != L'\n') lend++;
 			if (lend < inner.Length()) lend--;
 			string errstr = inner.Fragment(lbegin, lend - lbegin).Replace(L'\t', L' ');
-			console << TextColor(Console::ColorRed) << errstr << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << errstr << TextColorDefault() << LineFeed();
 			int posrel = token_begin - lbegin;
-			console << TextColor(Console::ColorDarkRed);
+			console << TextColor(ConsoleColor::DarkRed);
 			for (int i = 0; i < posrel; i++) console << L" ";
 			console << L"^";
 			for (int i = 0; i < token_end - token_begin - 1; i++) console << L"~";
 			console << TextColorDefault() << LineFeed();
-			console << TextColor(Console::ColorRed) << L"At line #" << line << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"At line #" << line << TextColorDefault() << LineFeed();
 			return 1;
 		}
 		catch (InvalidFormatException & e) {
-			console << TextColor(Console::ColorRed) << L"Invalid input file format." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Invalid input file format." << TextColorDefault() << LineFeed();
 			return 1;
 		}
 		catch (IO::FileAccessException & e) {
-			console << TextColor(Console::ColorRed) << L"Error accessing the input file." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Error accessing the input file." << TextColorDefault() << LineFeed();
 			return 1;
 		}
 		catch (...) {
-			console << TextColor(Console::ColorRed) << L"Internal application error." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Internal application error." << TextColorDefault() << LineFeed();
 			return 1;
 		}
 		try {
@@ -151,20 +152,20 @@ int Main(void)
 				TextWriter writer(&file, encoding);
 				writer.WriteEncodingSignature();
 				RegistryToText(reg, &writer);
-				console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
+				console << TextColor(ConsoleColor::Green) << L"Succeed" << TextColorDefault() << LineFeed();
 			} else if (operation == Operation::ToBinary) {
 				console << L"Writing binary registry...";
 				FileStream file(output, AccessReadWrite, CreateAlways);
 				reg->Save(&file);
-				console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
+				console << TextColor(ConsoleColor::Green) << L"Succeed" << TextColorDefault() << LineFeed();
 			}
 		}
 		catch (IO::FileAccessException & e) {
-			console << TextColor(Console::ColorRed) << L"Error accessing the output file." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Error accessing the output file." << TextColorDefault() << LineFeed();
 			return 1;
 		}
 		catch (...) {
-			console << TextColor(Console::ColorRed) << L"Internal application error." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Internal application error." << TextColorDefault() << LineFeed();
 			return 1;
 		}
 	}

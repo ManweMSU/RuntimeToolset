@@ -3,6 +3,7 @@
 using namespace Engine;
 using namespace Engine::Streaming;
 using namespace Engine::Storage;
+using namespace Engine::IO;
 using namespace Engine::IO::ConsoleControl;
 
 enum class Operation { View, ToText, ToBinary };
@@ -51,7 +52,7 @@ void string_table_to_text(StringTable * table, ITextWriter & output)
 		int padding = padding_barrier - string(ID).Length();
 		output << ID;
 		for (int j = 0; j < padding; j++) output << L" ";
-		output << L"\"" << Syntax::FormatStringToken(Text) << L"\"" << IO::NewLineChar;
+		output << L"\"" << Syntax::FormatStringToken(Text) << L"\"" << IO::LineFeedSequence;
 	}
 }
 
@@ -106,12 +107,12 @@ int Main(void)
 				} else if (string::CompareIgnoreCase(args->ElementAt(i + 1), L"utf32") == 0) {
 					encoding = Encoding::UTF32;
 				} else {
-					console << TextColor(Console::ColorRed) << L"Unknown text encoding \"" + args->ElementAt(i + 1) + L"\"." << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Red) << L"Unknown text encoding \"" + args->ElementAt(i + 1) + L"\"." << TextColorDefault() << LineFeed();
 					return 1;
 				}
 				i++;
 			} else {
-				console << TextColor(Console::ColorRed) << L"Invalid command line syntax." << TextColorDefault() << LineFeed();
+				console << TextColor(ConsoleColor::Red) << L"Invalid command line syntax." << TextColorDefault() << LineFeed();
 				return 1;
 			}
 		}
@@ -124,12 +125,12 @@ int Main(void)
 			catch (...) { table.SetReference(0); }
 			if (!table) table.SetReference(compile_string_table(&file));
 			if (!table) {
-				console << TextColor(Console::ColorRed) << L"Invalid input file format." << TextColorDefault() << LineFeed();
+				console << TextColor(ConsoleColor::Red) << L"Invalid input file format." << TextColorDefault() << LineFeed();
 				return 1;
 			}
 		}
 		catch (...) {
-			console << TextColor(Console::ColorRed) << L"Error accessing the input file." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Error accessing the input file." << TextColorDefault() << LineFeed();
 			return 1;
 		}
 		try {
@@ -141,20 +142,20 @@ int Main(void)
 				TextWriter writer(&file, encoding);
 				writer.WriteEncodingSignature();
 				string_table_to_text(table, writer);
-				console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
+				console << TextColor(ConsoleColor::Green) << L"Succeed" << TextColorDefault() << LineFeed();
 			} else if (operation == Operation::ToBinary) {
 				console << L"Writing binary string table...";
 				FileStream file(output, AccessReadWrite, CreateAlways);
 				table->Save(&file);
-				console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
+				console << TextColor(ConsoleColor::Green) << L"Succeed" << TextColorDefault() << LineFeed();
 			}
 		}
 		catch (IO::FileAccessException & e) {
-			console << TextColor(Console::ColorRed) << L"Error accessing the output file." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Error accessing the output file." << TextColorDefault() << LineFeed();
 			return 1;
 		}
 		catch (...) {
-			console << TextColor(Console::ColorRed) << L"Internal application error." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Internal application error." << TextColorDefault() << LineFeed();
 			return 1;
 		}
 	}

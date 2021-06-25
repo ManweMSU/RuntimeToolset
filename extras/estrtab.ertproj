@@ -8,7 +8,7 @@ VersionInformation {
 	ApplicationName = "Engine String Table Converter"
 	CompanyName = "Engine Software"
 	Copyright = "© Engine Software. 2018-2021"
-	Version = "1.0.1.4"
+	Version = "1.0.2.5"
 	InternalName = "estrtab"
 	ApplicationIdentifier = "Engine.StringTableConverter"
 	CompanyIdentifier = "EngineSoftware"

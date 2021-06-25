@@ -3,6 +3,7 @@
 using namespace Engine;
 using namespace Engine::Streaming;
 using namespace Engine::Storage;
+using namespace Engine::IO;
 using namespace Engine::IO::ConsoleControl;
 
 string root;
@@ -30,7 +31,7 @@ bool LoadConfigurations(Console & console)
 			if (!config) throw Exception();
 		}
 	} catch (...) {
-		console << TextColor(Console::ColorRed) << L"Failed to load the target set." << TextColorDefault() << LineFeed();
+		console << TextColor(ConsoleColor::Red) << L"Failed to load the target set." << TextColorDefault() << LineFeed();
 		return false;
 	}
 	SafePointer<RegistryNode> archs = config->OpenNode(L"AvailableArchitectures");
@@ -86,7 +87,7 @@ int Main(void)
 {
 	Console console;
 	try {
-		UI::Windows::InitializeCodecCollection();
+		Codec::InitializeDefaultCodecs();
 		if (!LoadConfigurations(console)) return 1;
 		CreateIcon(console);
 		int try_count = 0;
@@ -99,7 +100,7 @@ int Main(void)
 		console << FormatString(L"Build command was invoked for %0 configurations.", try_count) << LineFeed();
 		console << FormatString(L"%0 of them succeeded (%1%%).", try_count, success_count * 100 / try_count) << LineFeed();
 	} catch (...) {
-		console << TextColor(Console::ColorRed) << L"Internal error." << TextColorDefault() << LineFeed();
+		console << TextColor(ConsoleColor::Red) << L"Internal error." << TextColorDefault() << LineFeed();
 		return 1;
 	}
 	return 0;

@@ -3,6 +3,7 @@
 using namespace Engine;
 using namespace Engine::Streaming;
 using namespace Engine::Storage;
+using namespace Engine::IO;
 using namespace Engine::IO::ConsoleControl;
 
 struct {
@@ -34,16 +35,16 @@ int ParseCommandLine(Console & console)
 						state.packages << IO::ExpandPath(args->ElementAt(i));
 						i++;
 					} else {
-						console << TextColor(Console::ColorYellow) << L"Invalid command line: argument expected." << TextColorDefault() << LineFeed();
+						console << TextColor(ConsoleColor::Yellow) << L"Invalid command line: argument expected." << TextColorDefault() << LineFeed();
 						return 1;
 					}
 				} else {
-					console << TextColor(Console::ColorYellow) << FormatString(L"Command line argument \"%0\" is invalid.", string(arg, 1)) << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Yellow) << FormatString(L"Command line argument \"%0\" is invalid.", string(arg, 1)) << TextColorDefault() << LineFeed();
 					return 1;
 				}
 			}
 		} else {
-			console << TextColor(Console::ColorYellow) << FormatString(L"Invalid command line argument \"%0\".", cmd) << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Yellow) << FormatString(L"Invalid command line argument \"%0\".", cmd) << TextColorDefault() << LineFeed();
 			return 1;
 		}
 	}
@@ -67,7 +68,7 @@ int InstallPackage(Console & console, const string & package)
 		SafePointer<Stream> package_stream = new FileStream(package, AccessRead, OpenExisting);
 		SafePointer<Archive> package_archive = OpenArchive(package_stream);
 		if (!package_archive) {
-			console << TextColor(Console::ColorRed) << L"Invalid archive file format." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Invalid archive file format." << TextColorDefault() << LineFeed();
 			throw Exception();
 		}
 		for (ArchiveFile file = 1; file <= package_archive->GetFileCount(); file++) {
@@ -78,7 +79,7 @@ int InstallPackage(Console & console, const string & package)
 			if (!file_os.Length()) file_os = L"*";
 			if (!file_arch.Length()) file_arch = L"*";
 			if (name.Length() && Syntax::MatchFilePattern(os, file_os) && Syntax::MatchFilePattern(arch, file_arch)) {
-				console << L"Extracting file \"" << TextColor(Console::ColorCyan) << name << TextColorDefault() << L"\"...";
+				console << L"Extracting file \"" << TextColor(ConsoleColor::Cyan) << name << TextColorDefault() << L"\"...";
 				try {
 					auto full_name = IO::ExpandPath(state.root + L"/" + name);
 					if (string::CompareIgnoreCase(folder, L"yes") == 0) {
@@ -90,21 +91,21 @@ int InstallPackage(Console & console, const string & package)
 						source->CopyTo(dest);
 					}
 				} catch (...) {
-					console << TextColor(Console::ColorRed) << L"Failed." << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Red) << L"Failed." << TextColorDefault() << LineFeed();
 					throw;
 				}
-				console << TextColor(Console::ColorGreen) << L"Succeed." << TextColorDefault() << LineFeed();
+				console << TextColor(ConsoleColor::Green) << L"Succeed." << TextColorDefault() << LineFeed();
 			}
 		}
 	} catch (IO::FileAccessException & e) {
-		console << TextColor(Console::ColorRed) << FormatString(L"File access error (error code %0).", string(e.code, HexadecimalBase, 8)) << TextColorDefault() << LineFeed();
-		console << TextColor(Console::ColorRed) << L"Failed to install the package." << TextColorDefault() << LineFeed();
+		console << TextColor(ConsoleColor::Red) << FormatString(L"File access error (error code %0).", string(e.code, HexadecimalBase, 8)) << TextColorDefault() << LineFeed();
+		console << TextColor(ConsoleColor::Red) << L"Failed to install the package." << TextColorDefault() << LineFeed();
 		return 1;
 	} catch (...) {
-		console << TextColor(Console::ColorRed) << L"Failed to install the package." << TextColorDefault() << LineFeed();
+		console << TextColor(ConsoleColor::Red) << L"Failed to install the package." << TextColorDefault() << LineFeed();
 		return 1;
 	}
-	console << TextColor(Console::ColorGreen) << L"Package installed successfully." << TextColorDefault() << LineFeed();
+	console << TextColor(ConsoleColor::Green) << L"Package installed successfully." << TextColorDefault() << LineFeed();
 	return 0;
 }
 
@@ -129,7 +130,7 @@ int Main(void)
 				FileStream stream(state.root + L"/ertbndl.ecs", AccessRead, OpenExisting);
 				info = LoadRegistry(&stream);
 				if (!info) throw Exception();
-			} catch (...) { console << TextColor(Console::ColorRed) << L"Failed to load the bundle configuration." << TextColorDefault() << LineFeed(); }
+			} catch (...) { console << TextColor(ConsoleColor::Red) << L"Failed to load the bundle configuration." << TextColorDefault() << LineFeed(); }
 			console << info->GetValueString(L"Name") << LineFeed();
 			console << info->GetValueInteger(L"VersionMajor") << L"." << info->GetValueInteger(L"VersionMinor") << LineFeed();
 			console << info->GetValueTime(L"Stamp").ToLocal().ToString() << LineFeed();
@@ -149,10 +150,10 @@ int Main(void)
 			console << LineFeed();
 		}
 	} catch (Exception & e) {
-		console << TextColor(Console::ColorRed) << FormatString(L"Manager failed: %0.", e.ToString()) << TextColorDefault() << LineFeed();
+		console << TextColor(ConsoleColor::Red) << FormatString(L"Manager failed: %0.", e.ToString()) << TextColorDefault() << LineFeed();
 		return 1;
 	} catch (...) {
-		console << TextColor(Console::ColorRed) << L"Manager failed: Unknown exception." << TextColorDefault() << LineFeed();
+		console << TextColor(ConsoleColor::Red) << L"Manager failed: Unknown exception." << TextColorDefault() << LineFeed();
 		return 1;
 	}
 	return 0;

@@ -13,5 +13,5 @@ VersionInformation {
 	Copyright = "© Engine Software. 2021"
 	Description = "Generates environment configuration for Visual Studio Code."
 	InternalName = "ertvscc"
-	Version = "1.0.0.1"
+	Version = "1.0.1.4"
 }

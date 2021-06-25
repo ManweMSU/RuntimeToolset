@@ -74,7 +74,7 @@ int ParseCommandLine(Console & console)
 						if (error) return error;
 						i++;
 					} else {
-						console << TextColor(Console::ColorYellow) << L"Invalid command line: argument expected." << TextColorDefault() << LineFeed();
+						console << TextColor(ConsoleColor::Yellow) << L"Invalid command line: argument expected." << TextColorDefault() << LineFeed();
 						return ERTBT_INVALID_COMMAND_LINE;
 					}
 				} else if (arg == L'c') {
@@ -83,7 +83,7 @@ int ParseCommandLine(Console & console)
 						if (error) return error;
 						i++;
 					} else {
-						console << TextColor(Console::ColorYellow) << L"Invalid command line: argument expected." << TextColorDefault() << LineFeed();
+						console << TextColor(ConsoleColor::Yellow) << L"Invalid command line: argument expected." << TextColorDefault() << LineFeed();
 						return ERTBT_INVALID_COMMAND_LINE;
 					}
 				} else if (arg == L'o') {
@@ -92,14 +92,14 @@ int ParseCommandLine(Console & console)
 						if (error) return error;
 						i++;
 					} else {
-						console << TextColor(Console::ColorYellow) << L"Invalid command line: argument expected." << TextColorDefault() << LineFeed();
+						console << TextColor(ConsoleColor::Yellow) << L"Invalid command line: argument expected." << TextColorDefault() << LineFeed();
 						return ERTBT_INVALID_COMMAND_LINE;
 					}
 				} else if (arg == L'r') {
 					if (i < args->Length() - 1) {
 						auto name = args->ElementAt(i);
 						if (!IsValidResourceName(name)) {
-							if (!state.silent) console << TextColor(Console::ColorRed) << FormatString(L"Invalid resource name \"%0\".", name) << TextColorDefault() << LineFeed();
+							if (!state.silent) console << TextColor(ConsoleColor::Red) << FormatString(L"Invalid resource name \"%0\".", name) << TextColorDefault() << LineFeed();
 							return ERTBT_INVALID_RESOURCE;
 						}
 						i++;
@@ -111,17 +111,17 @@ int ParseCommandLine(Console & console)
 						resource.Locale = L"";
 						res_state.resources.Append(resource);
 					} else {
-						console << TextColor(Console::ColorYellow) << L"Invalid command line: a pair of arguments expected." << TextColorDefault() << LineFeed();
+						console << TextColor(ConsoleColor::Yellow) << L"Invalid command line: a pair of arguments expected." << TextColorDefault() << LineFeed();
 						return ERTBT_INVALID_COMMAND_LINE;
 					}
 				} else {
-					console << TextColor(Console::ColorYellow) << FormatString(L"Command line argument \"%0\" is invalid.", string(arg, 1)) << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Yellow) << FormatString(L"Command line argument \"%0\" is invalid.", string(arg, 1)) << TextColorDefault() << LineFeed();
 					return ERTBT_INVALID_COMMAND_LINE;
 				}
 			}
 		} else {
 			if (state.project_file_path.Length()) {
-				console << TextColor(Console::ColorYellow) << L"Duplicate input file argument on command line." << TextColorDefault() << LineFeed();
+				console << TextColor(ConsoleColor::Yellow) << L"Duplicate input file argument on command line." << TextColorDefault() << LineFeed();
 				return ERTBT_DUPLICATE_INPUT_FILE;
 			}
 			state.project_file_path = IO::ExpandPath(cmd);
@@ -160,7 +160,7 @@ int BuildIcon(const string & path, UniqueIcon ** icon, Console & console, bool i
 			if (out_time > src_time && out_time > state.project_time) return ERTBT_SUCCESS;
 		} catch (...) {}
 	}
-	if (!state.silent) console << L"Converting icon file " << TextColor(Console::ColorCyan) << IO::Path::GetFileName(path) << TextColorDefault() << L"...";
+	if (!state.silent) console << L"Converting icon file " << TextColor(ConsoleColor::Cyan) << IO::Path::GetFileName(path) << TextColorDefault() << L"...";
 	try {
 		FileStream source(path, AccessRead, OpenExisting);
 		SafePointer<Codec::Image> image = Codec::DecodeImage(&source);
@@ -178,10 +178,10 @@ int BuildIcon(const string & path, UniqueIcon ** icon, Console & console, bool i
 			Codec::EncodeImage(&output_stream, image, configuration->GetValueString(L"IconCodec"));
 		} else throw Exception();
 	} catch (...) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed" << TextColorDefault() << LineFeed();
 		return ERTBT_INVALID_FILE_FORMAT;
 	}
-	if (!state.silent) console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
+	if (!state.silent) console << TextColor(ConsoleColor::Green) << L"Succeed" << TextColorDefault() << LineFeed();
 	return ERTBT_SUCCESS;
 }
 int ExtractResources(Console & console, RegistryNode * node = 0, const string & locale = L"")
@@ -193,7 +193,7 @@ int ExtractResources(Console & console, RegistryNode * node = 0, const string & 
 		ApplicationResource resource;
 		resource.SourcePath = ExpandPath(current->GetValueString(v), state.project_root_path);
 		if (!IsValidResourceName(v)) {
-			if (!state.silent) console << TextColor(Console::ColorRed) << FormatString(L"Invalid resource name \"%0\".", v) << TextColorDefault() << LineFeed();
+			if (!state.silent) console << TextColor(ConsoleColor::Red) << FormatString(L"Invalid resource name \"%0\".", v) << TextColorDefault() << LineFeed();
 			return ERTBT_INVALID_RESOURCE;
 		}
 		resource.Name = v;
@@ -203,7 +203,7 @@ int ExtractResources(Console & console, RegistryNode * node = 0, const string & 
 	for (auto & v : current->GetSubnodes()) {
 		auto cand = v.LowerCase();
 		if (cand.Length() != 2) {
-			if (!state.silent) console << TextColor(Console::ColorRed) << FormatString(L"Invalid locale name \"%0\".", v) << TextColorDefault() << LineFeed();
+			if (!state.silent) console << TextColor(ConsoleColor::Red) << FormatString(L"Invalid locale name \"%0\".", v) << TextColorDefault() << LineFeed();
 			return ERTBT_INVALID_RESOURCE;
 		}
 		SafePointer<RegistryNode> sub = current->OpenNode(v);
@@ -237,7 +237,7 @@ int ExtractFileFormats(Console & console)
 			format.Icon = 0;
 			res_state.file_formats.Append(format);
 		} else {
-			if (!state.silent) console << TextColor(Console::ColorRed) << L"Unknown format definition." << TextColorDefault() << LineFeed();
+			if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Unknown format definition." << TextColorDefault() << LineFeed();
 			return ERTBT_INVALID_FORMAT_ALIAS;
 		}
 	}
@@ -253,7 +253,7 @@ void GenerateApplicationManifest(const string & at, Console & console)
 			if (out_time > state.project_time) return;
 		} catch (...) {}
 	}
-	if (!state.silent) console << L"Writing manifest file " << TextColor(Console::ColorCyan) << IO::Path::GetFileName(at) << TextColorDefault() << L"...";
+	if (!state.silent) console << L"Writing manifest file " << TextColor(ConsoleColor::Cyan) << IO::Path::GetFileName(at) << TextColorDefault() << L"...";
 	try {
 		FileStream man_stream(at, AccessWrite, CreateAlways);
 		TextWriter man(&man_stream, Encoding::UTF8);
@@ -291,10 +291,10 @@ void GenerateApplicationManifest(const string & at, Console & console)
 		// Finilize
 		man.WriteLine(L"</assembly>");
 	} catch (...) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed" << TextColorDefault() << LineFeed();
 		throw;
 	}
-	if (!state.silent) console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
+	if (!state.silent) console << TextColor(ConsoleColor::Green) << L"Succeed" << TextColorDefault() << LineFeed();
 }
 void GenerateResourceScript(const string & at, Console & console)
 {
@@ -370,15 +370,15 @@ void GenerateResourceScript(const string & at, Console & console)
 			if (*buffer_data == *current_data) return;
 		} catch (...) {}
 	}
-	if (!state.silent) console << L"Writing resource script file " << TextColor(Console::ColorCyan) << IO::Path::GetFileName(at) << TextColorDefault() << L"...";
+	if (!state.silent) console << L"Writing resource script file " << TextColor(ConsoleColor::Cyan) << IO::Path::GetFileName(at) << TextColorDefault() << L"...";
 	try {
 		FileStream script_stream(at, AccessWrite, CreateAlways);
 		script_stream.WriteArray(buffer_data);
 	} catch (...) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed" << TextColorDefault() << LineFeed();
 		throw;
 	}
-	if (!state.silent) console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
+	if (!state.silent) console << TextColor(ConsoleColor::Green) << L"Succeed" << TextColorDefault() << LineFeed();
 }
 void GenerateFileFormatsManifest(const string & at, Console & console)
 {
@@ -389,7 +389,7 @@ void GenerateFileFormatsManifest(const string & at, Console & console)
 			if (out_time > state.project_time) return;
 		} catch (...) {}
 	}
-	if (!state.silent) console << L"Writing file formats manifest " << TextColor(Console::ColorCyan) << IO::Path::GetFileName(at) << TextColorDefault() << L"...";
+	if (!state.silent) console << L"Writing file formats manifest " << TextColor(ConsoleColor::Cyan) << IO::Path::GetFileName(at) << TextColorDefault() << L"...";
 	try {
 		SafePointer<Registry> manifest = CreateRegistry();
 		for (auto & ff : res_state.file_formats) {
@@ -409,10 +409,10 @@ void GenerateFileFormatsManifest(const string & at, Console & console)
 		FileStream manifest_stream(at, AccessReadWrite, CreateAlways);
 		RegistryToText(manifest, &manifest_stream, Encoding::UTF8);
 	} catch (...) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed" << TextColorDefault() << LineFeed();
 		throw;
 	}
-	if (!state.silent) console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
+	if (!state.silent) console << TextColor(ConsoleColor::Green) << L"Succeed" << TextColorDefault() << LineFeed();
 }
 int CompileResource(const string & source, const string & object, const string & log, Console & console)
 {
@@ -440,10 +440,10 @@ int CompileResource(const string & source, const string & object, const string &
 	auto oa = configuration->GetValueString(L"Compiler/OutputArgument");
 	auto cc = configuration->GetValueString(L"Compiler/Path");
 	if (!cc.Length()) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"No resource compiler set for current configuration." << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"No resource compiler set for current configuration." << TextColorDefault() << LineFeed();
 		return ERTBT_INVALID_RC_SET;
 	}
-	if (!state.silent) console << L"Compiling resource script " << TextColor(Console::ColorCyan) << IO::Path::GetFileName(source) << TextColorDefault() << L"...";
+	if (!state.silent) console << L"Compiling resource script " << TextColor(ConsoleColor::Cyan) << IO::Path::GetFileName(source) << TextColorDefault() << L"...";
 	Array<string> cc_args(0x80);
 	AppendArgumentLine(cc_args, oa, object);
 	SafePointer<RegistryNode> la = configuration->OpenNode(L"Compiler/Arguments");
@@ -452,19 +452,19 @@ int CompileResource(const string & source, const string & object, const string &
 	handle log_file = IO::CreateFile(log, AccessReadWrite, CreateAlways);
 	IO::SetStandardOutput(log_file);
 	IO::SetStandardError(log_file);
-	IO::CloseFile(log_file);
+	IO::CloseHandle(log_file);
 	SafePointer<Process> compiler = CreateCommandProcess(cc, &cc_args);
 	if (!compiler) {
 		if (!state.silent) {
-			console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
-			console << TextColor(Console::ColorRed) << FormatString(L"Failed to launch the compiler (%0).", cc) << TextColorDefault() << LineFeed();
-			console << TextColor(Console::ColorRed) << L"You may try \"ertaconf\" to repair." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Failed" << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << FormatString(L"Failed to launch the compiler (%0).", cc) << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"You may try \"ertaconf\" to repair." << TextColorDefault() << LineFeed();
 		}
 		return ERTBT_INVALID_RC_SET;
 	}
 	compiler->Wait();
 	if (compiler->GetExitCode()) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed" << TextColorDefault() << LineFeed();
 		if (state.shelllog) {
 			IO::SetStandardOutput(state.stdout_clone);
 			IO::SetStandardError(state.stderr_clone);
@@ -474,7 +474,7 @@ int CompileResource(const string & source, const string & object, const string &
 	}
 	IO::SetStandardOutput(state.stdout_clone);
 	IO::SetStandardError(state.stderr_clone);
-	if (!state.silent) console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
+	if (!state.silent) console << TextColor(ConsoleColor::Green) << L"Succeed" << TextColorDefault() << LineFeed();
 	return ERTBT_SUCCESS;
 }
 
@@ -584,20 +584,20 @@ void GeneratePropertyList(const string & at, Console & console)
 			if (*buffer_data == *current_data) return;
 		} catch (...) {}
 	}
-	if (!state.silent) console << L"Writing bundle information file " << TextColor(Console::ColorCyan) << IO::Path::GetFileName(at) << TextColorDefault() << L"...";
+	if (!state.silent) console << L"Writing bundle information file " << TextColor(ConsoleColor::Cyan) << IO::Path::GetFileName(at) << TextColorDefault() << L"...";
 	try {
 		FileStream list_stream(at, AccessWrite, CreateAlways);
 		list_stream.WriteArray(buffer_data);
 	} catch (...) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed" << TextColorDefault() << LineFeed();
 		throw;
 	}
-	if (!state.silent) console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
+	if (!state.silent) console << TextColor(ConsoleColor::Green) << L"Succeed" << TextColorDefault() << LineFeed();
 }
 int BuildBundle(Console & console)
 {
 	auto bundle = IO::ExpandPath(state.project_output_root + L"/" + state.project_output_name + L".app");
-	if (!state.silent) console << L"Building Mac OS Application Bundle " << TextColor(Console::ColorCyan) << IO::Path::GetFileName(bundle) << TextColorDefault() << L"...";
+	if (!state.silent) console << L"Building Mac OS Application Bundle " << TextColor(ConsoleColor::Cyan) << IO::Path::GetFileName(bundle) << TextColorDefault() << L"...";
 	IO::CreateDirectoryTree(bundle);
 	ClearDirectory(bundle);
 	IO::CreateDirectoryTree(bundle + L"/Contents/MacOS");
@@ -613,23 +613,23 @@ int BuildBundle(Console & console)
 			auto inner_name = r.Locale.Length() ? (r.Name + L"-" + r.Locale) : r.Name;
 			if (!CopyFile(r.SourcePath, bundle + L"/Contents/Resources/" + inner_name)) {
 				if (!state.silent) {
-					console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
-					console << TextColor(Console::ColorRed) << FormatString(L"Failed to import resource file \"%0\".", r.SourcePath) << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Red) << L"Failed" << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Red) << FormatString(L"Failed to import resource file \"%0\".", r.SourcePath) << TextColorDefault() << LineFeed();
 				}
 				return ERTBT_BUNDLE_BUILD_ERROR;
 			}
 		}
 	} catch (...) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed" << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed" << TextColorDefault() << LineFeed();
 		return ERTBT_BUNDLE_BUILD_ERROR;
 	}
-	if (!state.silent) console << TextColor(Console::ColorGreen) << L"Succeed" << TextColorDefault() << LineFeed();
+	if (!state.silent) console << TextColor(ConsoleColor::Green) << L"Succeed" << TextColorDefault() << LineFeed();
 	return ERTBT_SUCCESS;
 }
 
 int Main(void)
 {
-	UI::Windows::InitializeCodecCollection();
+	Codec::InitializeDefaultCodecs();
 	state.stdout_clone = IO::CloneHandle(IO::GetStandardOutput());
 	state.stderr_clone = IO::CloneHandle(IO::GetStandardError());
 	Console console(state.stdout_clone);
@@ -653,13 +653,13 @@ int Main(void)
 			ProjectPostConfig();
 			configuration = local_config->OpenNode(L"Resource");
 			if (!configuration) {
-				if (!state.silent) console << TextColor(Console::ColorRed) << L"Resource tool configuration is invalid." << TextColorDefault() << LineFeed();
+				if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Resource tool configuration is invalid." << TextColorDefault() << LineFeed();
 				return ERTBT_INVALID_CONFIGURATION;
 			}
 			if (configuration->GetValueBoolean(L"Windows")) res_state.mode = ResourceMode::Windows;
 			else if (configuration->GetValueBoolean(L"MacOSX")) res_state.mode = ResourceMode::MacOSX;
 			else {
-				if (!state.silent) console << TextColor(Console::ColorRed) << L"Resource tool configuration is invalid." << TextColorDefault() << LineFeed();
+				if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Resource tool configuration is invalid." << TextColorDefault() << LineFeed();
 				return ERTBT_INVALID_CONFIGURATION;
 			}
 			res_state.property_disable_hidpi = state.project->GetValueBoolean(L"NoHiDPI");
@@ -706,10 +706,10 @@ int Main(void)
 			console << LineFeed();
 		}
 	} catch (Exception & e) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << FormatString(L"Resource tool failed: %0.", e.ToString()) << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << FormatString(L"Resource tool failed: %0.", e.ToString()) << TextColorDefault() << LineFeed();
 		return ERTBT_COMMON_EXCEPTION;
 	} catch (...) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"Resource tool failed: Unknown exception." << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Resource tool failed: Unknown exception." << TextColorDefault() << LineFeed();
 		return ERTBT_UNCOMMON_EXCEPTION;
 	}
 	return ERTBT_SUCCESS;

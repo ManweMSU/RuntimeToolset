@@ -4,6 +4,7 @@
 
 using namespace Engine;
 using namespace Engine::Streaming;
+using namespace Engine::IO;
 using namespace Engine::IO::ConsoleControl;
 using namespace Engine::Storage;
 

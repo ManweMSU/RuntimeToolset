@@ -32,7 +32,7 @@ int ParseCommandLine(Console & console)
 						if (error) return error;
 						i++;
 					} else {
-						console << TextColor(Console::ColorYellow) << L"Invalid command line: argument expected." << TextColorDefault() << LineFeed();
+						console << TextColor(ConsoleColor::Yellow) << L"Invalid command line: argument expected." << TextColorDefault() << LineFeed();
 						return ERTBT_INVALID_COMMAND_LINE;
 					}
 				} else if (arg == L'c') {
@@ -41,7 +41,7 @@ int ParseCommandLine(Console & console)
 						if (error) return error;
 						i++;
 					} else {
-						console << TextColor(Console::ColorYellow) << L"Invalid command line: argument expected." << TextColorDefault() << LineFeed();
+						console << TextColor(ConsoleColor::Yellow) << L"Invalid command line: argument expected." << TextColorDefault() << LineFeed();
 						return ERTBT_INVALID_COMMAND_LINE;
 					}
 				} else if (arg == L'd') {
@@ -54,7 +54,7 @@ int ParseCommandLine(Console & console)
 						state.extra_include << args->ElementAt(i);
 						i++;
 					} else {
-						console << TextColor(Console::ColorYellow) << L"Invalid command line: argument expected." << TextColorDefault() << LineFeed();
+						console << TextColor(ConsoleColor::Yellow) << L"Invalid command line: argument expected." << TextColorDefault() << LineFeed();
 						return ERTBT_INVALID_COMMAND_LINE;
 					}
 				} else if (arg == L'r') {
@@ -63,13 +63,13 @@ int ParseCommandLine(Console & console)
 				} else if (arg == L'w') {
 					config_state.create_workspace = true;
 				} else {
-					console << TextColor(Console::ColorYellow) << FormatString(L"Command line argument \"%0\" is invalid.", string(arg, 1)) << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Yellow) << FormatString(L"Command line argument \"%0\" is invalid.", string(arg, 1)) << TextColorDefault() << LineFeed();
 					return ERTBT_INVALID_COMMAND_LINE;
 				}
 			}
 		} else {
 			if (state.project_file_path.Length()) {
-				console << TextColor(Console::ColorYellow) << L"Duplicate input file argument on command line." << TextColorDefault() << LineFeed();
+				console << TextColor(ConsoleColor::Yellow) << L"Duplicate input file argument on command line." << TextColorDefault() << LineFeed();
 				return ERTBT_DUPLICATE_INPUT_FILE;
 			}
 			state.project_file_path = IO::ExpandPath(cmd);
@@ -92,7 +92,7 @@ bool LoadGeneratorConfigurations(Console & console)
 			if (!config_state.registry) throw Exception();
 		}
 	} catch (...) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed to load the target set." << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed to load the target set." << TextColorDefault() << LineFeed();
 		return false;
 	}
 	return true;
@@ -110,10 +110,10 @@ string ExecuteAndGetOutput(const string & exe, const Array<string> & args, int *
 	IO::SetStandardOutput(pipe_in);
 	IO::SetStandardError(pipe_in);
 	SafePointer<Process> process = CreateCommandProcess(exe, &args);
-	IO::CloseFile(pipe_in);
+	IO::CloseHandle(pipe_in);
 	IO::SetStandardOutput(state.stdout_clone);
 	IO::SetStandardError(state.stderr_clone);
-	if (!process) { IO::CloseFile(pipe_out); if (exit_code) *exit_code = -1; return L""; }
+	if (!process) { IO::CloseHandle(pipe_out); if (exit_code) *exit_code = -1; return L""; }
 	process->Wait();
 	if (exit_code) *exit_code = process->GetExitCode();
 	FileStream stream(pipe_out, true);
@@ -136,10 +136,10 @@ int CreateWorkspace(Console & console)
 		writer.WriteLine(L"\t\"settings\": {}");
 		writer.Write(L"}");
 	} catch (...) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed." << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed." << TextColorDefault() << LineFeed();
 		return ERTBT_UNCOMMON_EXCEPTION;
 	}
-	if (!state.silent) console << TextColor(Console::ColorGreen) << L"Succeed." << TextColorDefault() << LineFeed();
+	if (!state.silent) console << TextColor(ConsoleColor::Green) << L"Succeed." << TextColorDefault() << LineFeed();
 	return ERTBT_SUCCESS;
 }
 int CreateEnvironment(Console & console)
@@ -177,6 +177,16 @@ int CreateEnvironment(Console & console)
 		config->defines.Clear();
 		config->defines << L"UNICODE=1";
 		config->defines << L"_UNICODE=1";
+		try {
+			auto root = IO::Path::GetDirectory(IO::GetExecutablePath());
+			FileStream stream(root + L"/ertbndl.ecs", AccessRead, OpenExisting);
+			SafePointer<Registry> info = LoadRegistry(&stream);
+			if (!info) throw Exception();
+			config->defines << (L"ENGINE_RUNTIME_VERSION_MAJOR=" + string(info->GetValueInteger(L"VersionMajor")));
+			config->defines << (L"ENGINE_RUNTIME_VERSION_MINOR=" + string(info->GetValueInteger(L"VersionMinor")));
+		} catch (...) {
+			config->defines << L"ENGINE_RUNTIME_VERSION_ALPHA=1";
+		}
 		SafePointer<RegistryNode> ld = local_config->OpenNode(L"Defines");
 		if (ld) for (auto & v : ld->GetValues()) config->defines << v + L"=1";
 		#ifdef ENGINE_WINDOWS
@@ -220,10 +230,10 @@ int CreateEnvironment(Console & console)
 		stream.SetLength(0);
 		serializer.SerializeObject(configs);
 	} catch (...) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed." << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed." << TextColorDefault() << LineFeed();
 		return ERTBT_UNCOMMON_EXCEPTION;
 	}
-	if (!state.silent) console << TextColor(Console::ColorGreen) << L"Succeed." << TextColorDefault() << LineFeed();
+	if (!state.silent) console << TextColor(ConsoleColor::Green) << L"Succeed." << TextColorDefault() << LineFeed();
 	return ERTBT_SUCCESS;
 }
 void CreateBuildTask(BuildTasks & tasks, const string & arch, const string & os, const string & conf)
@@ -271,10 +281,10 @@ int CreateBuildTasks(Console & console)
 		stream.SetLength(0);
 		serializer.SerializeObject(tasks);
 	} catch (...) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed." << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed." << TextColorDefault() << LineFeed();
 		return ERTBT_UNCOMMON_EXCEPTION;
 	}
-	if (!state.silent) console << TextColor(Console::ColorGreen) << L"Succeed." << TextColorDefault() << LineFeed();
+	if (!state.silent) console << TextColor(ConsoleColor::Green) << L"Succeed." << TextColorDefault() << LineFeed();
 	return ERTBT_SUCCESS;
 }
 int CreateLaunchTask(Console & console)
@@ -305,7 +315,7 @@ int CreateLaunchTask(Console & console)
 		args << state.os.Name;
 		auto app_path = ExecuteAndGetOutput(L"ertbuild", args, &exit_code);
 		if (exit_code) {
-			if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed." << TextColorDefault() << LineFeed();
+			if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed." << TextColorDefault() << LineFeed();
 			if (exit_code > 0) return exit_code;
 			else return ERTBT_UNCOMMON_EXCEPTION;
 		}
@@ -313,7 +323,7 @@ int CreateLaunchTask(Console & console)
 		task->program = app_path;
 		task->cwd = IO::Path::GetDirectory(app_path);
 		task->stopAtEntry = false;
-		task->externalConsole = (mode == InterfaceMode::Console) ? true : false;
+		task->console = (mode == InterfaceMode::Console) ? L"externalTerminal" : L"internalConsole";
 		#ifdef ENGINE_WINDOWS
 		task->type = L"cppvsdbg";
 		task->MIMode = L"";
@@ -326,10 +336,10 @@ int CreateLaunchTask(Console & console)
 		stream.SetLength(0);
 		serializer.SerializeObject(list);
 	} catch (...) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed." << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed." << TextColorDefault() << LineFeed();
 		return ERTBT_UNCOMMON_EXCEPTION;
 	}
-	if (!state.silent) console << TextColor(Console::ColorGreen) << L"Succeed." << TextColorDefault() << LineFeed();
+	if (!state.silent) console << TextColor(ConsoleColor::Green) << L"Succeed." << TextColorDefault() << LineFeed();
 	return ERTBT_SUCCESS;
 }
 
@@ -402,10 +412,10 @@ int Main(void)
 			console << LineFeed();
 		}
 	} catch (Exception & e) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << FormatString(L"Configuration generator failed: %0.", e.ToString()) << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << FormatString(L"Configuration generator failed: %0.", e.ToString()) << TextColorDefault() << LineFeed();
 		return ERTBT_COMMON_EXCEPTION;
 	} catch (...) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"Configuration generator failed: Unknown exception." << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Configuration generator failed: Unknown exception." << TextColorDefault() << LineFeed();
 		return ERTBT_UNCOMMON_EXCEPTION;
 	}
 	return ERTBT_SUCCESS;

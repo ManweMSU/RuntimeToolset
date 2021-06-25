@@ -136,14 +136,14 @@ int ConfigurationInitialize(Console & console)
 			tool_config = CompileTextRegistry(&config_file_stream);
 			if (!tool_config) throw Exception();
 		} catch (...) {
-			if (!state.silent) console << TextColor(Console::ColorRed) << L"Build tool configuration is unavailable or invalid." << LineFeed() <<
+			if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Build tool configuration is unavailable or invalid." << LineFeed() <<
 				L"Check ertbuild.ecs or ertbuild.ini." << LineFeed() << L"You may try \"ertaconf\" to repair." << TextColorDefault() << LineFeed();
 			return ERTBT_INVALID_CONFIGURATION;
 		}
 	}
 	SafePointer<RegistryNode> general = tool_config->OpenNode(L"Targets");
 	if (!general) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"There is no \"Targets\" node in the configuration." << LineFeed() <<
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"There is no \"Targets\" node in the configuration." << LineFeed() <<
 			L"Check ertbuild.ecs or ertbuild.ini." << LineFeed() << L"You may try \"ertaconf\" to repair." << TextColorDefault() << LineFeed();
 		return ERTBT_INVALID_CONFIGURATION;
 	}
@@ -164,28 +164,28 @@ int ConfigurationInitialize(Console & console)
 		} else if (string::CompareIgnoreCase(cls, L"subsys") == 0) {
 			state.vol_subsys << bt;
 		} else {
-			if (!state.silent) console << TextColor(Console::ColorRed) << FormatString(L"Unknown target class \"%0\" in the configuration.", cls) << LineFeed() <<
+			if (!state.silent) console << TextColor(ConsoleColor::Red) << FormatString(L"Unknown target class \"%0\" in the configuration.", cls) << LineFeed() <<
 				L"Check ertbuild.ecs or ertbuild.ini." << TextColorDefault() << LineFeed();
 			return ERTBT_INVALID_CONFIGURATION;
 		}
 	}
 	if (!state.vol_arch.Length()) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"There is no processor architectures in the configuration." << LineFeed() <<
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"There is no processor architectures in the configuration." << LineFeed() <<
 			L"Check ertbuild.ecs or ertbuild.ini." << TextColorDefault() << LineFeed();
 		return ERTBT_INVALID_CONFIGURATION;
 	}
 	if (!state.vol_os.Length()) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"There is no operating systems in the configuration." << LineFeed() <<
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"There is no operating systems in the configuration." << LineFeed() <<
 			L"Check ertbuild.ecs or ertbuild.ini." << TextColorDefault() << LineFeed();
 		return ERTBT_INVALID_CONFIGURATION;
 	}
 	if (!state.vol_conf.Length()) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"There is no output configurations in the configuration." << LineFeed() <<
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"There is no output configurations in the configuration." << LineFeed() <<
 			L"Check ertbuild.ecs or ertbuild.ini." << TextColorDefault() << LineFeed();
 		return ERTBT_INVALID_CONFIGURATION;
 	}
 	if (!state.vol_subsys.Length()) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"There is no subsystems in the configuration." << LineFeed() <<
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"There is no subsystems in the configuration." << LineFeed() <<
 			L"Check ertbuild.ecs or ertbuild.ini." << TextColorDefault() << LineFeed();
 		return ERTBT_INVALID_CONFIGURATION;
 	}
@@ -222,7 +222,7 @@ int SelectTarget(const string & name, BuildTargetClass cls, Console & console)
 		set = &state.subsys;
 	}
 	for (auto & e : *search_vol) if (string::CompareIgnoreCase(e.Name, name) == 0) { *set = e; return ERTBT_SUCCESS; }
-	if (!state.silent) console << TextColor(Console::ColorRed) << FormatString(L"No %0 with name \"%1\" was found.", cls_name, name) << TextColorDefault() << LineFeed();
+	if (!state.silent) console << TextColor(ConsoleColor::Red) << FormatString(L"No %0 with name \"%1\" was found.", cls_name, name) << TextColorDefault() << LineFeed();
 	return ERTBT_UNKNOWN_TARGET;
 }
 BuildTarget * FindTarget(const string & name, BuildTargetClass cls)
@@ -259,7 +259,7 @@ int MakeLocalConfiguration(Console & console)
 	auto rt_path = local_config->GetValueString(L"RuntimePath");
 	auto obj_path = local_config->GetValueString(L"ObjectPath");
 	if (!rt_path.Length() || !obj_path.Length()) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"The selected targets are not supported by current configuration." << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"The selected targets are not supported by current configuration." << TextColorDefault() << LineFeed();
 		return ERTBT_UNSUPPORTED_TRIPLE;
 	}
 	state.runtime_source_path = ExpandPath(rt_path, local);
@@ -285,7 +285,7 @@ int LoadProject(Console & console)
 			project_initial_config = CompileTextRegistry(&project_stream);
 			if (!project_initial_config) throw Exception();
 		} catch (...) {
-			if (!state.silent) console << TextColor(Console::ColorRed) << L"Failed to access the project file." << TextColorDefault() << LineFeed();
+			if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed to access the project file." << TextColorDefault() << LineFeed();
 			return ERTBT_PROJECT_FILE_ACCESS;
 		}
 	}
@@ -321,7 +321,7 @@ int LoadProject(Console & console)
 		if (string::CompareIgnoreCase(arch, state.arch.Name)) {
 			auto error = SelectTarget(arch, BuildTargetClass::Architecture, console);
 			if (error) return error;
-			if (!state.silent) console << TextColor(Console::ColorYellow) << FormatString(L"Project forced to switch the architecture to %0.", state.arch.HumanReadableName) << TextColorDefault() << LineFeed();
+			if (!state.silent) console << TextColor(ConsoleColor::Yellow) << FormatString(L"Project forced to switch the architecture to %0.", state.arch.HumanReadableName) << TextColorDefault() << LineFeed();
 			return LoadProject(console);
 		}
 	}
@@ -384,7 +384,7 @@ int LoadVersionInformation(Console & console)
 	state.version_information.CompanyIdentifier = state.project->GetValueString(L"VersionInformation/CompanyIdentifier");
 	state.version_information.ApplicationDescription = state.project->GetValueString(L"VersionInformation/Description");
 	if (!IsValidIdentifier(state.version_information.InternalName) || !IsValidIdentifier(state.version_information.ApplicationIdentifier) || !IsValidIdentifier(state.version_information.CompanyIdentifier)) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"Invalid identifier in the version information." << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Invalid identifier in the version information." << TextColorDefault() << LineFeed();
 		return ERTBT_INVALID_IDENTIFIER;
 	}
 	try {
@@ -395,7 +395,7 @@ int LoadVersionInformation(Console & console)
 		if (verind.Length() > 2) state.version_information.Subversion = verind[2].ToUInt32(); else state.version_information.Subversion = 0;
 		if (verind.Length() > 3) state.version_information.Build = verind[3].ToUInt32(); else state.version_information.Build = 0;
 	} catch (...) {
-		if (!state.silent) console << TextColor(Console::ColorRed) << L"Invalid version notation in the version information." << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Invalid version notation in the version information." << TextColorDefault() << LineFeed();
 		return ERTBT_INVALID_VERSION;
 	}
 	if (!state.version_information.InternalName.Length()) state.version_information.InternalName = state.project_output_name;

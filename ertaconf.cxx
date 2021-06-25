@@ -7,6 +7,7 @@
 using namespace Engine;
 using namespace Engine::Streaming;
 using namespace Engine::Storage;
+using namespace Engine::IO;
 using namespace Engine::IO::ConsoleControl;
 
 string AllocateIndex(void)
@@ -278,10 +279,10 @@ string ExecuteAndGetOutput(const string & exe, int * exit_code = 0)
 	IO::SetStandardOutput(pipe_in);
 	IO::SetStandardError(pipe_in);
 	SafePointer<Process> process = CreateProcess(exe);
-	IO::CloseFile(pipe_in);
+	IO::CloseHandle(pipe_in);
 	IO::SetStandardOutput(stdout_clone);
 	IO::SetStandardError(stderr_clone);
-	if (!process) { IO::CloseFile(pipe_out); if (exit_code) *exit_code = -1; return L""; }
+	if (!process) { IO::CloseHandle(pipe_out); if (exit_code) *exit_code = -1; return L""; }
 	process->Wait();
 	if (exit_code) *exit_code = process->GetExitCode();
 	FileStream stream(pipe_out, true);
@@ -294,28 +295,28 @@ bool SearchForWindowsToolsets(Console & console)
 	try {
 		SafePointer<WindowsSpecific::RegistryKey> sys_root = WindowsSpecific::OpenRootRegistryKey(WindowsSpecific::RegistryRootKey::LocalMachine);
 		if (!sys_root) {
-			console << TextColor(Console::ColorRed) << L"Failed." << TextColorDefault() << LineFeed();
-			console << TextColor(Console::ColorRed) << L"Registry root access failure." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Failed." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Registry root access failure." << TextColorDefault() << LineFeed();
 			return false;
 		}
 		SafePointer<WindowsSpecific::RegistryKey> kits_root = sys_root->OpenKey(L"Software\\Microsoft\\Windows Kits\\Installed Roots", WindowsSpecific::RegistryKeyAccess::ReadOnly);
 		if (!kits_root) {
-			console << TextColor(Console::ColorRed) << L"Failed." << TextColorDefault() << LineFeed();
-			console << TextColor(Console::ColorRed) << FormatString(L"Failed to open \"%0\".", L"HKLM\\Software\\Microsoft\\Windows Kits\\Installed Roots") << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Failed." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << FormatString(L"Failed to open \"%0\".", L"HKLM\\Software\\Microsoft\\Windows Kits\\Installed Roots") << TextColorDefault() << LineFeed();
 			return false;
 		}
 		state.windows_sdk_root = kits_root->GetValueString(L"KitsRoot10");
 		SafePointer< Array<string> > versions = kits_root->EnumerateSubkeys();
 		SortArray(*versions);
 		if (!versions->Length()) {
-			console << TextColor(Console::ColorRed) << L"Failed." << TextColorDefault() << LineFeed();
-			console << TextColor(Console::ColorRed) << L"No Windows 10 SDK versions found in the registry." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Failed." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"No Windows 10 SDK versions found in the registry." << TextColorDefault() << LineFeed();
 			return false;
 		}
 		state.windows_sdk_version = versions->LastElement();
 	} catch (...) {
-		console << TextColor(Console::ColorRed) << L"Failed." << TextColorDefault() << LineFeed();
-		console << TextColor(Console::ColorRed) << L"General registry access failure." << TextColorDefault() << LineFeed();
+		console << TextColor(ConsoleColor::Red) << L"Failed." << TextColorDefault() << LineFeed();
+		console << TextColor(ConsoleColor::Red) << L"General registry access failure." << TextColorDefault() << LineFeed();
 		return false;
 	}
 	string drive = WindowsSpecific::GetShellFolderPath(WindowsSpecific::ShellFolder::WindowsRoot).Fragment(0, 3);
@@ -329,20 +330,20 @@ bool SearchForWindowsToolsets(Console & console)
 		}
 	}
 	if (!compiler_candidates.Length()) {
-		console << TextColor(Console::ColorRed) << L"Failed." << TextColorDefault() << LineFeed();
-		console << TextColor(Console::ColorRed) << L"Failed to locate the Visual C++ toolset." << TextColorDefault() << LineFeed();
+		console << TextColor(ConsoleColor::Red) << L"Failed." << TextColorDefault() << LineFeed();
+		console << TextColor(ConsoleColor::Red) << L"Failed to locate the Visual C++ toolset." << TextColorDefault() << LineFeed();
 		return false;
 	}
 	auto base_compiler = compiler_candidates.FirstElement().LowerCase();
 	int pos = base_compiler.FindLast(L"\\bin\\");
 	state.msvc_root = compiler_candidates.FirstElement().Fragment(0, pos);
-	console << TextColor(Console::ColorGreen) << L"Succeed." << TextColorDefault() << LineFeed();
+	console << TextColor(ConsoleColor::Green) << L"Succeed." << TextColorDefault() << LineFeed();
 	if (state.verbose) {
-		console.SetTextColor(Console::ColorCyan);
+		console.SetTextColor(ConsoleColor::Cyan);
 		console.WriteLine(FormatString(L"The Windows 10 SDK root is \"%0\".", state.windows_sdk_root));
 		console.WriteLine(FormatString(L"The Windows 10 SDK version is \"%0\".", state.windows_sdk_version));
 		console.WriteLine(FormatString(L"The Visual C++ toolset root is \"%0\".", state.msvc_root));
-		console.SetTextColor(Console::ColorDefault);
+		console.SetTextColor(ConsoleColor::Default);
 	}
 	console.Write(L"Setting up the toolset...");
 	SafePointer< Array<string> > compilers = IO::Search::GetFiles(state.msvc_root + L"\\cl.exe", true);
@@ -391,13 +392,13 @@ bool SearchForWindowsToolsets(Console & console)
 		auto output = ExecuteAndGetOutput(rc_base + rc, &code);
 		if (code == 0) { state.common_resource_compiler = rc_base + rc; break; }
 	}
-	console << TextColor(Console::ColorGreen) << L"Succeed." << TextColorDefault() << LineFeed();
+	console << TextColor(ConsoleColor::Green) << L"Succeed." << TextColorDefault() << LineFeed();
 	if (!state.tools.Length()) {
-		console << TextColor(Console::ColorRed) << L"No valid toolsets found." << TextColorDefault() << LineFeed();
+		console << TextColor(ConsoleColor::Red) << L"No valid toolsets found." << TextColorDefault() << LineFeed();
 		return false;
 	}
 	if (state.verbose) {
-		console.SetTextColor(Console::ColorCyan);
+		console.SetTextColor(ConsoleColor::Cyan);
 		console.WriteLine(FormatString(L"The resource compiler is \"%0\"", state.common_resource_compiler));
 		console.WriteLine(L"Include paths:");
 		for (auto & i : state.common_include) console.WriteLine(L"  " + i);
@@ -409,7 +410,7 @@ bool SearchForWindowsToolsets(Console & console)
 			console.WriteLine(L"    Library paths:");
 			for (auto & l : ts.lib) console.WriteLine(L"      " + l);
 		}
-		console.SetTextColor(Console::ColorDefault);
+		console.SetTextColor(ConsoleColor::Default);
 	}
 	return true;
 }
@@ -504,7 +505,7 @@ void RegisterTargets(Console & console)
 	RegisterTarget(L"Release", L"Release", L"conf");
 	RegisterTarget(L"Debug", L"Debug", L"conf");
 	SetDefaultTarget(L"Release");
-	console << TextColor(Console::ColorGreen) << L"Succeed." << TextColorDefault() << LineFeed();
+	console << TextColor(ConsoleColor::Green) << L"Succeed." << TextColorDefault() << LineFeed();
 }
 string ExpandPath(const string & path, const string & relative_to)
 {
@@ -530,7 +531,7 @@ bool ParseCommandLine(Console & console)
 						state.object_path = args->ElementAt(i);
 						i++;
 					} else {
-						console << TextColor(Console::ColorYellow) << L"Invalid command line: argument expected." << TextColorDefault() << LineFeed();
+						console << TextColor(ConsoleColor::Yellow) << L"Invalid command line: argument expected." << TextColorDefault() << LineFeed();
 						return false;
 					}
 				} else if (arg == L'p') {
@@ -540,18 +541,18 @@ bool ParseCommandLine(Console & console)
 						state.runtime_path = args->ElementAt(i);
 						i++;
 					} else {
-						console << TextColor(Console::ColorYellow) << L"Invalid command line: argument expected." << TextColorDefault() << LineFeed();
+						console << TextColor(ConsoleColor::Yellow) << L"Invalid command line: argument expected." << TextColorDefault() << LineFeed();
 						return false;
 					}
 				} else if (arg == L'v') {
 					state.verbose = true;
 				} else {
-					console << TextColor(Console::ColorYellow) << FormatString(L"Command line argument \"%0\" is invalid.", string(arg, 1)) << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Yellow) << FormatString(L"Command line argument \"%0\" is invalid.", string(arg, 1)) << TextColorDefault() << LineFeed();
 					return false;
 				}
 			}
 		} else {
-			console << TextColor(Console::ColorYellow) << FormatString(L"Unknown usage argument \"%0\".", args->ElementAt(i)) << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Yellow) << FormatString(L"Unknown usage argument \"%0\".", args->ElementAt(i)) << TextColorDefault() << LineFeed();
 			return false;
 		}
 	}
@@ -589,27 +590,27 @@ bool LoadConfigurations(Console & console)
 		}
 	} catch (...) { state.build_config = CreateRegistry(); }
 	console.WriteLine(L"Done.");
-	console.SetTextColor(Console::ColorYellow);
+	console.SetTextColor(ConsoleColor::Yellow);
 	console.WriteLine(FormatString(L"Automatic  configuration: %0", scs ? FormatString(L"PRESENT, %0", scs == 1 ? L"BINARY" : L"TEXT") : string(L"MISSING")));
 	console.WriteLine(FormatString(L"Build tool configuration: %0", bcs ? FormatString(L"PRESENT, %0", bcs == 1 ? L"BINARY" : L"TEXT") : string(L"MISSING")));
-	console.SetTextColor(Console::ColorDefault);
+	console.SetTextColor(ConsoleColor::Default);
 	state.self_config_text = scs != 1;
 	state.build_config_text = bcs != 1;
 	if (!state.runtime_path.Length()) state.runtime_path = state.self_config->GetValueString(L"Runtime");
 	if (!state.object_path.Length()) state.object_path = state.self_config->GetValueString(L"Object");
 	if (!state.runtime_path.Length()) {
-		console << TextColor(Console::ColorRed) << L"The Runtime path is unknown, run with :r argument." << TextColorDefault() << LineFeed();
+		console << TextColor(ConsoleColor::Red) << L"The Runtime path is unknown, run with :r argument." << TextColorDefault() << LineFeed();
 		return false;
 	}
 	if (!state.object_path.Length()) {
-		console << TextColor(Console::ColorRed) << L"The object cache path is unknown, run with :o argument." << TextColorDefault() << LineFeed();
+		console << TextColor(ConsoleColor::Red) << L"The object cache path is unknown, run with :o argument." << TextColorDefault() << LineFeed();
 		return false;
 	}
 	if (state.verbose) {
-		console.SetTextColor(Console::ColorCyan);
+		console.SetTextColor(ConsoleColor::Cyan);
 		console.WriteLine(FormatString(L"The Runtime path is \"%0\".", ExpandPath(state.runtime_path, root)));
 		console.WriteLine(FormatString(L"The object cache path is \"%0\".", ExpandPath(state.object_path, root)));
-		console.SetTextColor(Console::ColorDefault);
+		console.SetTextColor(ConsoleColor::Default);
 	}
 	state.root_path = root;
 	#ifdef ENGINE_WINDOWS
@@ -654,10 +655,10 @@ bool StoreConfigurations(Console & console)
 			state.build_config->Save(&stream);
 		}
 	} catch (...) {
-		console << TextColor(Console::ColorRed) << L"Failed." << TextColorDefault() << LineFeed();
+		console << TextColor(ConsoleColor::Red) << L"Failed." << TextColorDefault() << LineFeed();
 		return false;
 	}
-	console << TextColor(Console::ColorGreen) << L"Succeed." << TextColorDefault() << LineFeed();
+	console << TextColor(ConsoleColor::Green) << L"Succeed." << TextColorDefault() << LineFeed();
 	return true;
 }
 void BuildRuntimeCache(Console & console)
@@ -672,14 +673,14 @@ void BuildRuntimeCache(Console & console)
 	}
 	int step = 1;
 	for (auto & bv : state.cache_versions) {
-		console << L"Runtime cache build step " << TextColor(Console::ColorGreen) << string(step) << TextColorDefault() << L" of " <<
-			TextColor(Console::ColorMagenta) << string(state.cache_versions.Length()) << TextColorDefault() << LineFeed();
+		console << L"Runtime cache build step " << TextColor(ConsoleColor::Green) << string(step) << TextColorDefault() << L" of " <<
+			TextColor(ConsoleColor::Magenta) << string(state.cache_versions.Length()) << TextColorDefault() << LineFeed();
 		SafePointer<Process> builder = CreateCommandProcess(L"ertbuild", &bv.command_line);
 		if (builder) {
 			builder->Wait();
 			if (!builder->GetExitCode()) bv.successful = true;
 		} else {
-			console << TextColor(Console::ColorRed) << L"Error running the builder tool." << TextColorDefault() << LineFeed();
+			console << TextColor(ConsoleColor::Red) << L"Error running the builder tool." << TextColorDefault() << LineFeed();
 		}
 		step++;
 	}
@@ -687,11 +688,11 @@ void BuildRuntimeCache(Console & console)
 	for (auto & bv : state.cache_versions) {
 		auto descr = bv.arch + L", " + bv.conf;
 		descr += string(L' ', 15 - descr.Length());
-		console << TextColor(Console::ColorYellow) << descr << L": " << TextColorDefault();
+		console << TextColor(ConsoleColor::Yellow) << descr << L": " << TextColorDefault();
 		if (bv.successful) {
-			console << TextColor(Console::ColorGreen) << L"Built successfully." << TextColorDefault();
+			console << TextColor(ConsoleColor::Green) << L"Built successfully." << TextColorDefault();
 		} else {
-			console << TextColor(Console::ColorRed) << L"Built failed." << TextColorDefault();
+			console << TextColor(ConsoleColor::Red) << L"Built failed." << TextColorDefault();
 		}
 		console << LineFeed();
 	}
@@ -760,6 +761,7 @@ void GenerateAtomsWindows(Console & console)
 	windows.resource.compiler.argument_output = L"/fo$";
 	windows.resource.compiler.arguments << L"/r";
 	for (auto & i : state.common_include) windows.resource.compiler.arguments << L"/I" + i;
+	windows.defines << L"ENGINE_RUNTIME";
 	windows.defines << L"ENGINE_WINDOWS";
 	for (auto & ts : state.tools) {
 		auto & arch = CreateAtom(ts.arch, state.current_os, L"", L"");
@@ -848,6 +850,7 @@ void GenerateAtomsMacOSX(Console & console)
 	mac.compiler.arguments << L"-fcxx-modules";
 	mac.linker.command = L"clang++";
 	mac.linker.argument_output = L"-o";
+	mac.defines << L"ENGINE_RUNTIME";
 	mac.defines << L"ENGINE_UNIX";
 	mac.defines << L"ENGINE_MACOSX";
 	auto & mac_x64 = CreateAtom(L"X64", state.current_os, L"", L"");
@@ -912,7 +915,7 @@ void GenerateAtoms(Console & console)
 	#ifdef ENGINE_MACOSX
 	GenerateAtomsMacOSX(console);
 	#endif
-	console << TextColor(Console::ColorGreen) << L"Succeed." << TextColorDefault() << LineFeed();
+	console << TextColor(ConsoleColor::Green) << L"Succeed." << TextColorDefault() << LineFeed();
 }
 void PutConfigurationChanges(Console & console)
 {
@@ -944,7 +947,7 @@ void PutConfigurationChanges(Console & console)
 	try { aa->CreateValue(L"ARM64", RegistryValueType::Boolean); } catch (...) {}
 	aa->SetValue(L"ARM64", true);
 	#endif
-	console << TextColor(Console::ColorGreen) << L"Succeed." << TextColorDefault() << LineFeed();
+	console << TextColor(ConsoleColor::Green) << L"Succeed." << TextColorDefault() << LineFeed();
 }
 
 int Main(void)
@@ -987,10 +990,10 @@ int Main(void)
 			console << LineFeed();
 		}
 	} catch (Exception & e) {
-		console << TextColor(Console::ColorRed) << FormatString(L"Configurator failed: %0.", e.ToString()) << TextColorDefault() << LineFeed();
+		console << TextColor(ConsoleColor::Red) << FormatString(L"Configurator failed: %0.", e.ToString()) << TextColorDefault() << LineFeed();
 		return 1;
 	} catch (...) {
-		console << TextColor(Console::ColorRed) << L"Configurator failed: Unknown exception." << TextColorDefault() << LineFeed();
+		console << TextColor(ConsoleColor::Red) << L"Configurator failed: Unknown exception." << TextColorDefault() << LineFeed();
 		return 1;
 	}
 	return 0;

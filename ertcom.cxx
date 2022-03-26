@@ -383,6 +383,8 @@ int LoadVersionInformation(Console & console)
 	state.version_information.ApplicationIdentifier = state.project->GetValueString(L"VersionInformation/ApplicationIdentifier");
 	state.version_information.CompanyIdentifier = state.project->GetValueString(L"VersionInformation/CompanyIdentifier");
 	state.version_information.ApplicationDescription = state.project->GetValueString(L"VersionInformation/Description");
+	state.version_information.AccessRequirements.CameraUsageReason = state.project->GetValueString(L"AccessRequirements/Camera");
+	state.version_information.AccessRequirements.MicrophoneUsageReason = state.project->GetValueString(L"AccessRequirements/Microphone");
 	if (!IsValidIdentifier(state.version_information.InternalName) || !IsValidIdentifier(state.version_information.ApplicationIdentifier) || !IsValidIdentifier(state.version_information.CompanyIdentifier)) {
 		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Invalid identifier in the version information." << TextColorDefault() << LineFeed();
 		return ERTBT_INVALID_IDENTIFIER;

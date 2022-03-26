@@ -59,6 +59,10 @@ struct VersionInformation
 	string ApplicationIdentifier;
 	string CompanyIdentifier;
 	string ApplicationDescription;
+	struct {
+		string CameraUsageReason;
+		string MicrophoneUsageReason;
+	} AccessRequirements;
 };
 struct BuilderState {
 	handle stdout_clone;

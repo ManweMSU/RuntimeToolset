@@ -573,6 +573,14 @@ void GeneratePropertyList(const string & at, Console & console)
 			list.WriteLine(L"\t</array>");
 		}
 	}
+	if (state.version_information.AccessRequirements.CameraUsageReason.Length()) {
+		list.WriteLine(L"\t<key>NSCameraUsageDescription</key>");
+		list.WriteLine(L"\t<string>" + EscapeStringXml(state.version_information.AccessRequirements.CameraUsageReason) + L"</string>");
+	}
+	if (state.version_information.AccessRequirements.MicrophoneUsageReason.Length()) {
+		list.WriteLine(L"\t<key>NSMicrophoneUsageDescription</key>");
+		list.WriteLine(L"\t<string>" + EscapeStringXml(state.version_information.AccessRequirements.MicrophoneUsageReason) + L"</string>");
+	}
 	list.WriteLine(L"</dict>");
 	list.WriteLine(L"</plist>");
 	buffer.Seek(0, Begin);

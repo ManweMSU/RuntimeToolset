@@ -191,7 +191,9 @@ int ExtractResources(Console & console, RegistryNode * node = 0, const string & 
 	if (!current) return ERTBT_SUCCESS;
 	for (auto & v : current->GetValues()) {
 		ApplicationResource resource;
-		resource.SourcePath = ExpandPath(current->GetValueString(v), state.project_root_path);
+		auto pre_path = current->GetValueString(v);
+		if (pre_path[0] == L'@') resource.SourcePath = ExpandPath(pre_path.Fragment(1, -1), state.runtime_resources_path);
+		else resource.SourcePath = ExpandPath(pre_path, state.project_root_path);
 		if (!IsValidResourceName(v)) {
 			if (!state.silent) console << TextColor(ConsoleColor::Red) << FormatString(L"Invalid resource name \"%0\".", v) << TextColorDefault() << LineFeed();
 			return ERTBT_INVALID_RESOURCE;

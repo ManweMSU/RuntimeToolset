@@ -7,8 +7,8 @@ UseVersionDefines = true
 VersionInformation {
 	ApplicationName = "Engine Runtime Auto Configurator"
 	CompanyName = "Engine Software"
-	Copyright = "© Engine Software. 2019-2021"
-	Version = "2.0.2.10"
+	Copyright = "© Engine Software. 2019-2022"
+	Version = "2.0.3.11"
 	InternalName = "ertaconf"
 	ApplicationIdentifier = "EngineRuntime.AutoConfigurator"
 	CompanyIdentifier = "EngineSoftware"

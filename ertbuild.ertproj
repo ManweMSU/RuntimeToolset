@@ -16,8 +16,8 @@ VersionInformation {
 	ApplicationName = "Engine Runtime builder tool"
 	CompanyIdentifier = "EngineSoftware"
 	CompanyName = "Engine Software"
-	Copyright = "© Engine Software. 2018-2021"
+	Copyright = "© Engine Software. 2018-2022"
 	Description = "Builds Engine Runtime and Engine Runtime - based applications."
 	InternalName = "ertbuild"
-	Version = "2.0.2.56"
+	Version = "2.0.3.57"
 }

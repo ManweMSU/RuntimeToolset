@@ -265,6 +265,8 @@ int MakeLocalConfiguration(Console & console)
 	state.runtime_source_path = ExpandPath(rt_path, local);
 	state.runtime_bootstrapper_path = ExpandPath(local_config->GetValueString(L"Bootstrapper"), local);
 	state.runtime_object_path = ExpandPath(obj_path, local);
+	state.runtime_modules_path = ExpandPath(local_config->GetValueString(L"Modules"), local);
+	state.runtime_resources_path = ExpandPath(local_config->GetValueString(L"Resources"), local);
 	return ERTBT_SUCCESS;
 }
 int LoadProject(Console & console)
@@ -355,6 +357,13 @@ void ProjectPostConfig(void)
 {
 	SafePointer<RegistryNode> include = state.project->OpenNode(L"Include");
 	if (include) for (auto & v : include->GetValues()) state.extra_include << ExpandPath(include->GetValueString(v), state.project_root_path);
+	SafePointer<RegistryNode> link_with = state.project->OpenNode(L"LinkWith");
+	if (link_with) for (auto & v : include->GetValues()) {
+		auto name = link_with->GetValueString(v);
+		auto path = ExpandPath(name, state.runtime_modules_path);
+		state.extra_include << path;
+		state.link_with_roots << path;
+	}
 	auto output_location = state.project->GetValueString(L"OutputLocation");
 	if (!output_location.Length()) output_location = FormatString(L"_build/%0_%1_%2", state.os.Name.LowerCase(), state.arch.Name.LowerCase(), state.conf.Name.LowerCase());
 	state.project_output_root = ExpandPath(output_location, state.project_root_path);

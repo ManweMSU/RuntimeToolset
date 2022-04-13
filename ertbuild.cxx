@@ -537,6 +537,13 @@ int BuildProject(Console & console)
 		SafePointer<RegistryNode> list = state.project->OpenNode(L"CompileList");
 		if (list) for (auto & v : list->GetValues()) source_files << ExpandPath(list->GetValueString(v), state.project_root_path);
 	}
+	if (state.link_with_roots.Length()) {
+		auto filter = local_config->GetValueString(L"CompileFilter") + L";*.uiml;*.egsl";
+		for (auto & module : state.link_with_roots) {
+			SafePointer< Array<string> > source_files_search = IO::Search::GetFiles(module + L"/" + filter, true);
+			for (auto & f : *source_files_search) if (IO::Path::GetFileName(f)[0] != L'.') source_files << IO::ExpandPath(module + L"/" + f);
+		}
+	}
 	if (!state.pathout) {
 		IO::CreateDirectoryTree(state.project_output_root);
 		if (state.clean) ClearDirectory(state.project_output_root);

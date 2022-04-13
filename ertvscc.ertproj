@@ -10,8 +10,8 @@ VersionInformation {
 	ApplicationName = "Engine Runtime Visual Studio Code configurator"
 	CompanyIdentifier = "EngineSoftware"
 	CompanyName = "Engine Software"
-	Copyright = "© Engine Software. 2021"
+	Copyright = "© Engine Software. 2021-2022"
 	Description = "Generates environment configuration for Visual Studio Code."
 	InternalName = "ertvscc"
-	Version = "1.0.1.4"
+	Version = "1.0.2.6"
 }

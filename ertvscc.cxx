@@ -323,7 +323,7 @@ int CreateLaunchTask(Console & console)
 		task->program = app_path;
 		task->cwd = IO::Path::GetDirectory(app_path);
 		task->stopAtEntry = false;
-		task->console = (mode == InterfaceMode::Console) ? L"externalTerminal" : L"internalConsole";
+		task->externalConsole = (mode == InterfaceMode::Console);
 		#ifdef ENGINE_WINDOWS
 		task->type = L"cppvsdbg";
 		task->MIMode = L"";

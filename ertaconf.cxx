@@ -31,6 +31,8 @@ public:
 	string extension_object;
 	string path_object;
 	string path_runtime;
+	string path_modules;
+	string path_resources;
 	Array<string> defines = Array<string>(0x10);
 	struct {
 		string command;
@@ -94,6 +96,14 @@ public:
 		if (path_runtime.Length()) {
 			node->CreateValue(L"RuntimePath", RegistryValueType::String);
 			node->SetValue(L"RuntimePath", path_runtime);
+		}
+		if (path_modules.Length()) {
+			node->CreateValue(L"Modules", RegistryValueType::String);
+			node->SetValue(L"Modules", path_modules);
+		}
+		if (path_resources.Length()) {
+			node->CreateValue(L"Resources", RegistryValueType::String);
+			node->SetValue(L"Resources", path_resources);
 		}
 		if (compiler.command.Length() || compiler.argument_define.Length() || compiler.argument_include.Length() ||
 			compiler.argument_output.Length() || compiler.arguments.Length()) {
@@ -254,6 +264,8 @@ struct {
 	bool build_config_text = false;
 	string runtime_path;
 	string object_path;
+	string modules_path;
+	string resources_path;
 	string root_path;
 	string current_os;
 	string msvc_root;
@@ -598,6 +610,8 @@ bool LoadConfigurations(Console & console)
 	state.build_config_text = bcs != 1;
 	if (!state.runtime_path.Length()) state.runtime_path = state.self_config->GetValueString(L"Runtime");
 	if (!state.object_path.Length()) state.object_path = state.self_config->GetValueString(L"Object");
+	if (!state.modules_path.Length()) state.modules_path = state.self_config->GetValueString(L"Modules");
+	if (!state.resources_path.Length()) state.resources_path = state.self_config->GetValueString(L"Resources");
 	if (!state.runtime_path.Length()) {
 		console << TextColor(ConsoleColor::Red) << L"The Runtime path is unknown, run with :r argument." << TextColorDefault() << LineFeed();
 		return false;
@@ -708,6 +722,8 @@ void GenerateAtomsWindows(Console & console)
 {
 	auto & windows = CreateAtom(L"", state.current_os, L"", L"");
 	windows.path_runtime = state.runtime_path;
+	windows.path_modules = state.modules_path;
+	windows.path_resources = state.resources_path;
 	windows.source_filter = L"*.c;*.cpp;*.cxx";
 	windows.bootstrapper = L"bootstrapper.cpp";
 	windows.extension_object = L"obj";
@@ -837,6 +853,8 @@ void GenerateAtomsMacOSX(Console & console)
 {
 	auto & mac = CreateAtom(L"", state.current_os, L"", L"");
 	mac.path_runtime = state.runtime_path;
+	mac.path_modules = state.modules_path;
+	mac.path_resources = state.resources_path;
 	mac.source_filter = L"*.c;*.cpp;*.cxx;*.m;*.mm";
 	mac.bootstrapper = L"bootstrapper.cpp";
 	mac.extension_object = L"o";

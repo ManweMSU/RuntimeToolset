@@ -79,6 +79,8 @@ struct BuilderState {
 	string runtime_source_path;
 	string runtime_bootstrapper_path;
 	string runtime_object_path;
+	string runtime_modules_path;
+	string runtime_resources_path;
 
 	BuildTarget arch;
 	BuildTarget os;
@@ -102,6 +104,7 @@ struct BuilderState {
 	Array<BuildTarget> vol_conf = Array<BuildTarget>(0x10);
 
 	Array<string> extra_include = Array<string>(0x10);
+	Array<string> link_with_roots = Array<string>(0x10);
 };
 
 extern BuilderState state;

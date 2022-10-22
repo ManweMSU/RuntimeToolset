@@ -65,8 +65,7 @@
                 "ENGINE_VI_SUBVERSION=0",
                 "ENGINE_VI_BUILD=51"
             ],
-            "macFrameworkPath": [
-            ],
+            "macFrameworkPath": [],
             "windowsSdkVersion": "10.0.18362.0",
             "compilerPath": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Enterprise\\VC\\Tools\\MSVC\\14.28.29333\\bin\\Hostx64\\x86\\cl.exe",
             "cStandard": "c11",
@@ -75,6 +74,40 @@
             "browse": {
                 "path": [
                     "C:/Users/Manwe/AppData/Roaming/Engine Store/install/runtime/Runtime/*"
+                ]
+            }
+        },
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [
+                "ENGINE_UNIX",
+                "ENGINE_LINUX",
+                "ENGINE_X64",
+                "ENGINE_SUBSYSTEM_CONSOLE",
+                "ENGINE_VI_APPNAME",
+                "ENGINE_VI_COMPANY",
+                "ENGINE_VI_COPYRIGHT",
+                "ENGINE_VI_APPSYSNAME",
+                "ENGINE_VI_APPSHORTVERSION",
+                "ENGINE_VI_APPVERSION",
+                "ENGINE_VI_VERSIONMAJOR",
+                "ENGINE_VI_VERSIONMINOR",
+                "ENGINE_VI_SUBVERSION",
+                "ENGINE_VI_BUILD",
+                "ENGINE_VI_APPIDENT",
+                "ENGINE_VI_COMPANYIDENT",
+                "ENGINE_VI_DESCRIPTION"
+            ],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "linux-gcc-x64",
+            "browse": {
+                "path": [
+                    "/home/manwe/Документы/VirtualUI/*"
                 ]
             }
         }

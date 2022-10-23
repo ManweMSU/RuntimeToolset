@@ -745,6 +745,7 @@ void GenerateAtomsWindows(Console & console)
 	windows.compiler.arguments << L"/DWIN32";
 	windows.compiler.arguments << L"/D_UNICODE";
 	windows.compiler.arguments << L"/DUNICODE";
+	windows.compiler.arguments << L"/std:c++17";
 	for (auto & i : state.common_include) windows.compiler.arguments << L"/I" + i;
 	windows.linker.argument_output = L"/OUT:$";
 	windows.linker.arguments << L"/LTCG:INCREMENTAL";

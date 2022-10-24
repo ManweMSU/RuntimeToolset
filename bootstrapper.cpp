@@ -46,17 +46,19 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD Reason, LPVOID Reserved)
 #endif
 #endif
 #ifdef ENGINE_MACOSX
+#include <unistd.h>
+#include <signal.h>
 #ifdef ENGINE_SUBSYSTEM_CONSOLE
 int Main(void);
-int main(void) { return Main(); }
+int main(void) { signal(SIGPIPE, SIG_IGN); return Main(); }
 #endif
 #ifdef ENGINE_SUBSYSTEM_SILENT
 int Main(void);
-int main(void) { return Main(); }
+int main(void) { signal(SIGPIPE, SIG_IGN); return Main(); }
 #endif
 #ifdef ENGINE_SUBSYSTEM_GUI
 int Main(void);
-int main(void) { return Main(); }
+int main(void) { signal(SIGPIPE, SIG_IGN); return Main(); }
 #endif
 #ifdef ENGINE_SUBSYSTEM_LIBRARY
 void LibraryLoaded(void);

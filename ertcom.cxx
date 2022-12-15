@@ -358,7 +358,7 @@ void ProjectPostConfig(void)
 	SafePointer<RegistryNode> include = state.project->OpenNode(L"Include");
 	if (include) for (auto & v : include->GetValues()) state.extra_include << ExpandPath(include->GetValueString(v), state.project_root_path);
 	SafePointer<RegistryNode> link_with = state.project->OpenNode(L"LinkWith");
-	if (link_with) for (auto & v : include->GetValues()) {
+	if (link_with) for (auto & v : link_with->GetValues()) {
 		auto name = link_with->GetValueString(v);
 		auto path = ExpandPath(name, state.runtime_modules_path);
 		state.extra_include << path;

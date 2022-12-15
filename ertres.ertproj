@@ -9,7 +9,7 @@ VersionInformation {
     ApplicationName = "Engine Runtime resource tool"
     CompanyName = "Engine Software"
     Copyright = "© Engine Software. 2018-2022"
-    Version = "2.0.4.32"
+    Version = "2.0.5.33"
     InternalName = "ertres"
     ApplicationIdentifier = "EngineRuntime.ResourceTool"
     CompanyIdentifier = "EngineSoftware"

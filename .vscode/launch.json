@@ -16,11 +16,13 @@
             "name": "Run (Windows)",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "C:\\Users\\Manwe\\Documents\\GitHub\\RuntimeToolset\\_build_debug\\win32\\ertbuild.exe",
+            "program": "C:\\Users\\Manwe\\Documents\\GitHub\\RuntimeToolset\\_build\\windows_x64_debug\\ertbuild.exe",
             "args": [
+                "C:\\Users\\Manwe\\Documents\\GitHub\\RuntimeToolset\\XTEST\\xt.ertproj",
+                "-d"
             ],
             "stopAtEntry": false,
-            "cwd": "C:\\Users\\Manwe\\Documents\\GitHub\\RuntimeToolset\\_build_debug\\win32",
+            "cwd": "C:\\Users\\Manwe\\Documents\\GitHub\\RuntimeToolset\\_build\\windows_x64_debug",
             "externalConsole": true,
             "MIMode": ""
         }

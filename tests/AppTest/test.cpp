@@ -1,8 +1,7 @@
 ﻿#include <EngineRuntime.h>
 
 using namespace Engine;
-using namespace Engine::Application;
-using namespace Engine::UI;
+using namespace Engine::Windows;
 
 string NameOfArchitecture(Platform arch)
 {
@@ -18,14 +17,11 @@ string config = L"debug";
 string config = L"release";
 #endif
 
-class Callback : public IApplicationCallback {};
-
 int Main(void)
 {
-	Callback callback;
-	CreateController(&callback);
+	auto ws = GetWindowSystem();
 	string text = FormatString(L"Hello, Engine Runtime!\n\nTest was built for %0, current system is %1.\nOperating system: %2, %3 bytes of RAM.\nWas built using %4 configuration.",
 		NameOfArchitecture(ApplicationPlatform), NameOfArchitecture(GetSystemPlatform()), OperatingSystemName, GetInstalledMemory(), config);
-	GetController()->SystemMessageBox(0, text, ENGINE_VI_APPNAME, 0, MessageBoxButtonSet::Ok, MessageBoxStyle::Information, 0);
+	ws->MessageBox(0, text, ENGINE_VI_APPNAME, 0, MessageBoxButtonSet::Ok, MessageBoxStyle::Information, 0);
 	return 0;
 }

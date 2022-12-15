@@ -35,6 +35,10 @@ public:
 	string path_resources;
 	Array<string> defines = Array<string>(0x10);
 	struct {
+		string source;
+		string dest;
+	} effect_library;
+	struct {
 		string command;
 		string argument_define;
 		string argument_include;
@@ -76,6 +80,14 @@ public:
 		if (bootstrapper.Length()) {
 			node->CreateValue(L"Bootstrapper", RegistryValueType::String);
 			node->SetValue(L"Bootstrapper", bootstrapper);
+		}
+		if (effect_library.source.Length()) {
+			node->CreateValue(L"EffectLibrarySource", RegistryValueType::String);
+			node->SetValue(L"EffectLibrarySource", effect_library.source);
+		}
+		if (effect_library.dest.Length()) {
+			node->CreateValue(L"EffectLibraryName", RegistryValueType::String);
+			node->SetValue(L"EffectLibraryName", effect_library.dest);
 		}
 		if (source_filter.Length()) {
 			node->CreateValue(L"CompileFilter", RegistryValueType::String);
@@ -788,6 +800,12 @@ void GenerateAtomsWindows(Console & console)
 		for (auto & lib : ts.lib) arch.linker.arguments << L"/LIBPATH:" + lib;
 		if (ts.arch == L"X64" || ts.arch == L"ARM64") arch.defines << L"ENGINE_X64";
 		if (ts.arch == L"ARM" || ts.arch == L"ARM64") arch.defines << L"ENGINE_ARM";
+		arch.effect_library.dest = L"ertwndfx.dll";
+		if (ts.arch == L"X86") arch.effect_library.source = L"ertwndfx_x86.dll";
+		else if (ts.arch == L"X64") arch.effect_library.source = L"ertwndfx_x64.dll";
+		else if (ts.arch == L"ARM") arch.effect_library.source = L"ertwndfx_arm.dll";
+		else if (ts.arch == L"ARM64") arch.effect_library.source = L"ertwndfx_arm64.dll";
+		else arch.effect_library.dest = L"";
 	}
 	auto & windows_release = CreateAtom(L"", state.current_os, L"Release", L"");
 	auto & windows_debug = CreateAtom(L"", state.current_os, L"Debug", L"");

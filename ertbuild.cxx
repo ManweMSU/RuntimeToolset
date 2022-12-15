@@ -289,6 +289,23 @@ int CopyAttachments(Console & console)
 		}
 		if (!state.silent) console << TextColor(ConsoleColor::Green) << L"Succeed" << TextColorDefault() << LineFeed();
 	}
+	if (state.project->GetValueBoolean(L"UsesWindowEffects")) {
+		string fxl_from, fxl_to;
+		fxl_from = local_config->GetValueString(L"EffectLibrarySource");
+		fxl_to = local_config->GetValueString(L"EffectLibraryName");
+		if (fxl_from.Length() && fxl_to.Length()) {
+			auto local = IO::Path::GetDirectory(IO::GetExecutablePath());
+			auto dest_path = IO::Path::GetDirectory(state.output_executable);
+			fxl_from = ExpandPath(fxl_from, local);
+			fxl_to = ExpandPath(fxl_to, dest_path);
+			if (!state.silent) console << L"Including window effect library...";
+			if (!CopyFile(fxl_from, fxl_to)) {
+				if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed" << TextColorDefault() << LineFeed();
+				return ERTBT_ATTACHMENT_FAILED;
+			}
+			if (!state.silent) console << TextColor(ConsoleColor::Green) << L"Succeed" << TextColorDefault() << LineFeed();
+		}
+	}
 	return ERTBT_SUCCESS;
 }
 Array<string> * DecomposeCommand(const string & command)

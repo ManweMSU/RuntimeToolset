@@ -7,8 +7,8 @@ UseVersionDefines = true
 VersionInformation {
 	ApplicationName = "Engine Runtime bundle manager"
 	CompanyName = "Engine Software"
-	Copyright = "© Engine Software. 2019-2021"
-	Version = "1.1.1.7"
+	Copyright = "© Engine Software. 2019-2022"
+	Version = "1.1.2.8"
 	InternalName = "ertbndl"
 	ApplicationIdentifier = "EngineRuntime.BundleManager"
 	CompanyIdentifier = "EngineSoftware"

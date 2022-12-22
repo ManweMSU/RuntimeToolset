@@ -724,6 +724,31 @@ void BuildRuntimeCache(Console & console)
 	}
 	console.WriteLine(L"Automatic configuration finished.");
 }
+bool ExtractDefaultPackages(Console & console)
+{
+	string root = IO::Path::GetDirectory(IO::GetExecutablePath());
+	SafePointer< Array<string> > packages = IO::Search::GetFiles(root + L"/*.edefpkg");
+	if (!packages) return true;
+	for (auto & pkg : *packages) {
+		console << L"Extracting: " << TextColor(ConsoleColor::Cyan) << pkg << TextColorDefault() << L"...";
+		try {
+			auto file = IO::ExpandPath(root + L"/" + pkg);
+			Array<string> args(2);
+			args << L":Si";
+			args << file;
+			SafePointer<Process> process = CreateCommandProcess(L"ertbndl", &args);
+			if (!process) throw Exception();
+			process->Wait();
+			if (process->GetExitCode()) throw Exception();
+			IO::RemoveFile(file);
+		} catch (...) {
+			console << TextColor(ConsoleColor::Red) << L"Failed" << TextColorDefault() << LineFeed();
+			return false;
+		}
+		console.ClearLine();
+	}
+	return true;
+}
 
 TargetSetConfig & CreateAtom(const string & arch, const string & os, const string & conf, const string & subs)
 {
@@ -996,6 +1021,7 @@ int Main(void)
 	try {
 		if (!ParseCommandLine(console)) return 1;
 		if (state.configure_mode) {
+			if (!ExtractDefaultPackages(console)) return 1;
 			if (!LoadConfigurations(console)) return 1;
 			#ifdef ENGINE_WINDOWS
 			if (!SearchForWindowsToolsets(console)) return 1;

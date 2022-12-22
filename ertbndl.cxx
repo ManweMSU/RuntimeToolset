@@ -10,6 +10,7 @@ struct {
 	bool nologo = false;
 	bool print_where = false;
 	bool print_version = false;
+	bool silent = false;
 	Array<string> packages = Array<string>(0x10);
 	string root;
 } state;
@@ -26,6 +27,8 @@ int ParseCommandLine(Console & console)
 				auto arg = cmd[j];
 				if (arg == L'N') {
 					state.nologo = true;
+				} else if (arg == L'S') {
+					state.silent = true;
 				} else if (arg == L'V') {
 					state.print_version = true;
 				} else if (arg == L'W') {
@@ -63,12 +66,12 @@ int InstallPackage(Console & console, const string & package)
 	else if (ApplicationPlatform == Platform::X64) arch = L"X64";
 	else if (ApplicationPlatform == Platform::ARM) arch = L"ARM";
 	else if (ApplicationPlatform == Platform::ARM64) arch = L"ARM64";
-	console << L"Installing package \"" << IO::Path::GetFileName(package) << L"\"." << LineFeed();
+	if (!state.silent) console << L"Installing package \"" << IO::Path::GetFileName(package) << L"\"." << LineFeed();
 	try {
 		SafePointer<Stream> package_stream = new FileStream(package, AccessRead, OpenExisting);
 		SafePointer<Archive> package_archive = OpenArchive(package_stream);
 		if (!package_archive) {
-			console << TextColor(ConsoleColor::Red) << L"Invalid archive file format." << TextColorDefault() << LineFeed();
+			if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Invalid archive file format." << TextColorDefault() << LineFeed();
 			throw Exception();
 		}
 		for (ArchiveFile file = 1; file <= package_archive->GetFileCount(); file++) {
@@ -79,7 +82,7 @@ int InstallPackage(Console & console, const string & package)
 			if (!file_os.Length()) file_os = L"*";
 			if (!file_arch.Length()) file_arch = L"*";
 			if (name.Length() && Syntax::MatchFilePattern(os, file_os) && Syntax::MatchFilePattern(arch, file_arch)) {
-				console << L"Extracting file \"" << TextColor(ConsoleColor::Cyan) << name << TextColorDefault() << L"\"...";
+				if (!state.silent) console << L"Extracting file \"" << TextColor(ConsoleColor::Cyan) << name << TextColorDefault() << L"\"...";
 				try {
 					auto full_name = IO::ExpandPath(state.root + L"/" + name);
 					if (string::CompareIgnoreCase(folder, L"yes") == 0) {
@@ -91,21 +94,21 @@ int InstallPackage(Console & console, const string & package)
 						source->CopyTo(dest);
 					}
 				} catch (...) {
-					console << TextColor(ConsoleColor::Red) << L"Failed." << TextColorDefault() << LineFeed();
+					if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed." << TextColorDefault() << LineFeed();
 					throw;
 				}
-				console << TextColor(ConsoleColor::Green) << L"Succeed." << TextColorDefault() << LineFeed();
+				if (!state.silent) console << TextColor(ConsoleColor::Green) << L"Succeed." << TextColorDefault() << LineFeed();
 			}
 		}
 	} catch (IO::FileAccessException & e) {
-		console << TextColor(ConsoleColor::Red) << FormatString(L"File access error (error code %0).", string(e.code, HexadecimalBase, 8)) << TextColorDefault() << LineFeed();
-		console << TextColor(ConsoleColor::Red) << L"Failed to install the package." << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << FormatString(L"File access error (error code %0).", string(e.code, HexadecimalBase, 8)) << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed to install the package." << TextColorDefault() << LineFeed();
 		return 1;
 	} catch (...) {
-		console << TextColor(ConsoleColor::Red) << L"Failed to install the package." << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed to install the package." << TextColorDefault() << LineFeed();
 		return 1;
 	}
-	console << TextColor(ConsoleColor::Green) << L"Package installed successfully." << TextColorDefault() << LineFeed();
+	if (!state.silent) console << TextColor(ConsoleColor::Green) << L"Package installed successfully." << TextColorDefault() << LineFeed();
 	return 0;
 }
 
@@ -115,13 +118,13 @@ int Main(void)
 	try {
 		int error = ParseCommandLine(console);
 		if (error) return error;
-		if (!state.nologo) {
+		if (!state.nologo && !state.silent) {
 			console << ENGINE_VI_APPNAME << LineFeed();
 			console << L"Copyright " << string(ENGINE_VI_COPYRIGHT).Replace(L'\xA9', L"(C)") << LineFeed();
 			console << L"Version " << ENGINE_VI_APPVERSION << L", build " << ENGINE_VI_BUILD << LineFeed() << LineFeed();
 		}
 		state.root = IO::Path::GetDirectory(IO::GetExecutablePath());
-		if (state.print_where) {
+		if (state.print_where && !state.silent) {
 			console << state.root << LineFeed();
 		}
 		if (state.print_version) {
@@ -130,30 +133,36 @@ int Main(void)
 				FileStream stream(state.root + L"/ertbndl.ecs", AccessRead, OpenExisting);
 				info = LoadRegistry(&stream);
 				if (!info) throw Exception();
-			} catch (...) { console << TextColor(ConsoleColor::Red) << L"Failed to load the bundle configuration." << TextColorDefault() << LineFeed(); }
-			console << info->GetValueString(L"Name") << LineFeed();
-			console << info->GetValueInteger(L"VersionMajor") << L"." << info->GetValueInteger(L"VersionMinor") << LineFeed();
-			console << info->GetValueTime(L"Stamp").ToLocal().ToString() << LineFeed();
+			} catch (...) {
+				if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed to load the bundle configuration." << TextColorDefault() << LineFeed();
+				return 1;
+			}
+			if (!state.silent) {
+				console << info->GetValueString(L"Name") << LineFeed();
+				console << info->GetValueInteger(L"VersionMajor") << L"." << info->GetValueInteger(L"VersionMinor") << LineFeed();
+				console << info->GetValueTime(L"Stamp").ToLocal().ToString() << LineFeed();
+			}
 		}
 		for (auto & p : state.packages) {
 			error = InstallPackage(console, p);
 			if (error) return error;
 		}
-		if (!state.print_version && !state.print_where && !state.packages.Length()) {
+		if (!state.print_version && !state.print_where && !state.packages.Length() && !state.silent) {
 			console << L"Command line syntax:" << LineFeed();
 			console << L"  " << ENGINE_VI_APPSYSNAME << L" :NVWi" << LineFeed();
 			console << L"You can optionally use the next options:" << LineFeed();
 			console << L"  :N - use no logo mode - don't print application logo," << LineFeed();
+			console << L"  :S - use silent mode - supress any output," << LineFeed();
 			console << L"  :V - print current Runtime version and release date," << LineFeed();
 			console << L"  :W - print the full path of the Runtime toolset," << LineFeed();
 			console << L"  :i - install a package, package file is the next argument." << LineFeed();
 			console << LineFeed();
 		}
 	} catch (Exception & e) {
-		console << TextColor(ConsoleColor::Red) << FormatString(L"Manager failed: %0.", e.ToString()) << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << FormatString(L"Manager failed: %0.", e.ToString()) << TextColorDefault() << LineFeed();
 		return 1;
 	} catch (...) {
-		console << TextColor(ConsoleColor::Red) << L"Manager failed: Unknown exception." << TextColorDefault() << LineFeed();
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Manager failed: Unknown exception." << TextColorDefault() << LineFeed();
 		return 1;
 	}
 	return 0;

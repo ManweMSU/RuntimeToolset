@@ -916,8 +916,8 @@ void GenerateAtomsMacOSX(Console & console)
 	mac.defines << L"ENGINE_UNIX";
 	mac.defines << L"ENGINE_MACOSX";
 	auto & mac_x64 = CreateAtom(L"X64", state.current_os, L"", L"");
-	mac_x64.compiler.arguments << L"--target=x86_64-apple-darwin20.1.0";
-	mac_x64.linker.arguments << L"--target=x86_64-apple-darwin20.1.0";
+	mac_x64.compiler.arguments << L"--target=x86_64-apple-macos11";
+	mac_x64.linker.arguments << L"--target=x86_64-apple-macos11";
 	mac_x64.defines << L"ENGINE_X64";
 	auto & mac_arm64 = CreateAtom(L"ARM64", state.current_os, L"", L"");
 	mac_arm64.compiler.arguments << L"--target=arm64-apple-macos11";

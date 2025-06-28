@@ -8,6 +8,11 @@ using namespace Engine::IO;
 using namespace Engine::IO::ConsoleControl;
 using namespace Engine::Storage;
 
+#define ERTBT_SOURCE_FILE_UIML		L"uiml"
+#define ERTBT_SOURCE_FILE_EGSL		L"egsl"
+#define ERTBT_SOURCE_FILE_SCRIPT	L"ertbs"
+#define ERTBT_SUPPORTED_EXTENSIONS	L";*.uiml;*.egsl;*.ertbs"
+
 #define ERTBT_SUCCESS				0
 #define ERTBT_PROJECT_FILE_ACCESS	1
 #define ERTBT_INVALID_IDENTIFIER	2
@@ -104,7 +109,9 @@ struct BuilderState {
 	Array<BuildTarget> vol_conf = Array<BuildTarget>(0x10);
 
 	Array<string> extra_include = Array<string>(0x10);
+	Array<string> extra_define = Array<string>(0x10);
 	Array<string> link_with_roots = Array<string>(0x10);
+	Array<string> link_extra_args = Array<string>(0x10);
 };
 
 extern BuilderState state;

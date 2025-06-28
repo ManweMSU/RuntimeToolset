@@ -60,6 +60,7 @@ public:
 		bool is_library = false;
 		bool is_windows = false;
 		bool is_macosx = false;
+		bool is_linux = false;
 		struct {
 			string command;
 			string argument_output;
@@ -171,7 +172,7 @@ public:
 		if (resource.command.Length() || resource.redefine_link.Length() || resource.redefine_output.Length() ||
 			resource.icon_codec.Length() || resource.icon_extension.Length() || resource.icon_sizes.Length() ||
 			resource.compiler.command.Length() || resource.compiler.argument_output.Length() || resource.compiler.arguments.Length() ||
-			resource.is_library || resource.is_windows || resource.is_macosx) {
+			resource.is_library || resource.is_windows || resource.is_macosx || resource.is_linux) {
 			node->CreateNode(L"Resource");
 			SafePointer<RegistryNode> rnode = node->OpenNode(L"Resource");
 			if (resource.command.Length()) {
@@ -201,6 +202,10 @@ public:
 			if (resource.is_macosx) {
 				rnode->CreateValue(L"MacOSX", RegistryValueType::Boolean);
 				rnode->SetValue(L"MacOSX", true);
+			}
+			if (resource.is_linux) {
+				rnode->CreateValue(L"Linux", RegistryValueType::Boolean);
+				rnode->SetValue(L"Linux", true);
 			}
 			if (resource.is_library) {
 				rnode->CreateValue(L"Library", RegistryValueType::Boolean);
@@ -521,6 +526,40 @@ void RegisterTargets(Console & console)
 	state.cache_versions.Append(version_x64_debug);
 	state.cache_versions.Append(version_arm64_debug);
 	#endif
+	#ifdef ENGINE_LINUX
+	BuildVersion version_arch_release, version_arch_debug, version_arch_release_pure, version_arch_debug_pure;
+	if (GetSystemPlatform() == Platform::X86) {
+		version_arch_release.arch = version_arch_debug.arch = version_arch_release_pure.arch = version_arch_debug_pure.arch = L"X86";
+		RegisterTarget(L"X86", L"Intel x86", L"arch");
+		SetDefaultTarget(L"X86");
+	} else if (GetSystemPlatform() == Platform::X64) {
+		version_arch_release.arch = version_arch_debug.arch = version_arch_release_pure.arch = version_arch_debug_pure.arch = L"X64";
+		RegisterTarget(L"X64", L"Intel x86-64", L"arch");
+		SetDefaultTarget(L"X64");
+	} else if (GetSystemPlatform() == Platform::ARM) {
+		version_arch_release.arch = version_arch_debug.arch = version_arch_release_pure.arch = version_arch_debug_pure.arch = L"ARM";
+		RegisterTarget(L"ARM", L"ARM", L"arch");
+		SetDefaultTarget(L"ARM");
+	} else if (GetSystemPlatform() == Platform::ARM64) {
+		version_arch_release.arch = version_arch_debug.arch = version_arch_release_pure.arch = version_arch_debug_pure.arch = L"ARM64";
+		RegisterTarget(L"ARM64", L"ARM64", L"arch");
+		SetDefaultTarget(L"ARM64");
+	}
+	version_arch_release.os = version_arch_debug.os = version_arch_release_pure.os = version_arch_debug_pure.os = state.current_os;
+	version_arch_release.successful = version_arch_debug.successful = version_arch_release_pure.successful = version_arch_debug_pure.successful = false;
+	version_arch_release.conf = L"Release";
+	version_arch_debug.conf = L"Debug";
+	version_arch_release_pure.conf = L"PureRelease";
+	version_arch_debug_pure.conf = L"PureDebug";
+	state.cache_versions.Append(version_arch_release);
+	state.cache_versions.Append(version_arch_debug);
+	state.cache_versions.Append(version_arch_release_pure);
+	state.cache_versions.Append(version_arch_debug_pure);
+	RegisterTarget(L"Linux", L"Linux", L"os");
+	SetDefaultTarget(L"Linux");
+	RegisterTarget(L"PureRelease", L"Release with minimal dependencies", L"conf");
+	RegisterTarget(L"PureDebug", L"Debug with minimal dependencies", L"conf");
+	#endif
 	RegisterTarget(L"Console", L"Console", L"subsys");
 	RegisterTarget(L"GUI", L"Graphical", L"subsys");
 	RegisterTarget(L"Library", L"Library", L"subsys");
@@ -645,6 +684,9 @@ bool LoadConfigurations(Console & console)
 	#ifdef ENGINE_MACOSX
 	state.current_os = L"MacOSX";
 	#endif
+	#ifdef ENGINE_LINUX
+	state.current_os = L"Linux";
+	#endif
 	if (state.preserve_mode) {
 		Array<string> nodes_remove(0x10);
 		for (auto & nn : state.build_config->GetSubnodes()) {
@@ -711,9 +753,14 @@ void BuildRuntimeCache(Console & console)
 		step++;
 	}
 	console.WriteLine(L"Runtime cache build report:");
+	int max_length = 0;
+	for (auto & bv : state.cache_versions) {
+		int local_length = bv.arch.Length() + bv.conf.Length() + 3;
+		if (local_length > max_length) max_length = local_length;
+	}
 	for (auto & bv : state.cache_versions) {
 		auto descr = bv.arch + L", " + bv.conf;
-		descr += string(L' ', 15 - descr.Length());
+		descr += string(L' ', max_length - descr.Length());
 		console << TextColor(ConsoleColor::Yellow) << descr << L": " << TextColorDefault();
 		if (bv.successful) {
 			console << TextColor(ConsoleColor::Green) << L"Built successfully." << TextColorDefault();
@@ -825,12 +872,12 @@ void GenerateAtomsWindows(Console & console)
 		for (auto & lib : ts.lib) arch.linker.arguments << L"/LIBPATH:" + lib;
 		if (ts.arch == L"X64" || ts.arch == L"ARM64") arch.defines << L"ENGINE_X64";
 		if (ts.arch == L"ARM" || ts.arch == L"ARM64") arch.defines << L"ENGINE_ARM";
-		arch.effect_library.dest = L"ertwndfx.dll";
-		if (ts.arch == L"X86") arch.effect_library.source = L"ertwndfx_x86.dll";
-		else if (ts.arch == L"X64") arch.effect_library.source = L"ertwndfx_x64.dll";
-		else if (ts.arch == L"ARM") arch.effect_library.source = L"ertwndfx_arm.dll";
-		else if (ts.arch == L"ARM64") arch.effect_library.source = L"ertwndfx_arm64.dll";
-		else arch.effect_library.dest = L"";
+		// arch.effect_library.dest = L"ertwndfx.dll";
+		// if (ts.arch == L"X86") arch.effect_library.source = L"ertwndfx_x86.dll";
+		// else if (ts.arch == L"X64") arch.effect_library.source = L"ertwndfx_x64.dll";
+		// else if (ts.arch == L"ARM") arch.effect_library.source = L"ertwndfx_arm.dll";
+		// else if (ts.arch == L"ARM64") arch.effect_library.source = L"ertwndfx_arm64.dll";
+		// else arch.effect_library.dest = L"";
 	}
 	auto & windows_release = CreateAtom(L"", state.current_os, L"Release", L"");
 	auto & windows_debug = CreateAtom(L"", state.current_os, L"Debug", L"");
@@ -968,6 +1015,146 @@ void GenerateAtomsMacOSX(Console & console)
 	auto & mac_arm64_debug = CreateAtom(L"ARM64", state.current_os, L"Debug", L"");
 	mac_arm64_debug.path_object = state.object_path + L"/" + state.current_os.LowerCase() + L"_arm64_debug";
 }
+void GenerateAtomsLinux(Console & console)
+{
+	auto & linux = CreateAtom(L"", state.current_os, L"", L"");
+	linux.path_runtime = state.runtime_path;
+	linux.path_modules = state.modules_path;
+	linux.path_resources = state.resources_path;
+	linux.source_filter = L"*.c;*.cpp;*.cxx";
+	linux.bootstrapper = L"bootstrapper.cpp";
+	linux.extension_object = L"o";
+	linux.compiler.command = L"g++";
+	linux.compiler.argument_define = L"-D";
+	linux.compiler.argument_include = L"-I";
+	linux.compiler.argument_output = L"-o";
+	linux.compiler.arguments << L"-c";
+	linux.compiler.arguments << L"-std=c++17";
+	linux.compiler.arguments << L"-fpermissive";
+	linux.linker.command = L"g++";
+	linux.linker.argument_output = L"-o";
+	linux.linker.arguments << L"-pthread";
+	linux.linker.arguments << L"-lrt";
+	linux.linker.arguments << L"-lm";
+	linux.defines << L"ENGINE_RUNTIME";
+	linux.defines << L"ENGINE_UNIX";
+	linux.defines << L"ENGINE_LINUX";
+	auto & arch = CreateAtom(state.cache_versions[0].arch, state.current_os, L"", L"");
+	if (state.cache_versions[0].arch == L"X86") {
+	} else if (state.cache_versions[0].arch == L"X64") {
+		arch.defines << L"ENGINE_X64";
+	} else if (state.cache_versions[0].arch == L"ARM") {
+		arch.defines << L"ENGINE_ARM";
+	} else if (state.cache_versions[0].arch == L"ARM64") {
+		arch.defines << L"ENGINE_X64";
+		arch.defines << L"ENGINE_ARM";
+	}
+	auto & linux_release = CreateAtom(L"", state.current_os, L"Release", L"");
+	auto & linux_debug = CreateAtom(L"", state.current_os, L"Debug", L"");
+	auto & linux_release_pure = CreateAtom(L"", state.current_os, L"PureRelease", L"");
+	auto & linux_debug_pure = CreateAtom(L"", state.current_os, L"PureDebug", L"");
+	linux_release.compiler.arguments << L"-O3";
+	linux_release.compiler.arguments << L"-fvisibility=hidden";
+	linux_release.compiler.arguments << L"-I";
+	linux_release.compiler.arguments << L"/usr/include/freetype2";
+	linux_release.compiler.arguments << L"-I";
+	linux_release.compiler.arguments << L"/usr/include/dbus-1.0";
+	linux_release.compiler.arguments << L"-I";
+	if (state.cache_versions[0].arch == L"X86" || state.cache_versions[0].arch == L"ARM") linux_release.compiler.arguments << L"/usr/lib/dbus-1.0/include";
+	else if (state.cache_versions[0].arch == L"X64" || state.cache_versions[0].arch == L"ARM64") linux_release.compiler.arguments << L"/usr/lib64/dbus-1.0/include";
+	linux_release.linker.arguments << L"-O3";
+	linux_release.linker.arguments << L"-fvisibility=hidden";
+	linux_release.linker.arguments << L"-s";
+	linux_release.linker.arguments << L"-l:libdl.so";
+	linux_release.linker.arguments << L"-l:libunistring.so";
+	linux_release.linker.arguments << L"-l:libcrypto.so";
+	linux_release.linker.arguments << L"-l:libssl.so";
+	linux_release.linker.arguments << L"-l:libpng.so";
+	linux_release.linker.arguments << L"-l:libjpeg.so";
+	linux_release.linker.arguments << L"-l:libtiff.so";
+	linux_release.linker.arguments << L"-l:libdbus-1.so";
+	linux_release.linker.arguments << L"-l:libX11.so";
+	linux_release.linker.arguments << L"-l:libXrender.so";
+	linux_release.linker.arguments << L"-l:libXrandr.so";
+	linux_release.linker.arguments << L"-l:libXcursor.so";
+	linux_release.linker.arguments << L"-l:libcairo.so";
+	linux_release.linker.arguments << L"-l:libfreetype.so";
+	linux_release.linker.arguments << L"-l:libfontconfig.so";
+
+	// TODO: ADD FURTHER DEPENDENCIES
+
+	linux_release.defines << L"ENGINE_LINUX_FULL";
+	linux_debug.compiler.arguments << L"-O0";
+	linux_debug.compiler.arguments << L"-ggdb";
+	linux_debug.compiler.arguments << L"-I";
+	linux_debug.compiler.arguments << L"/usr/include/freetype2";
+	linux_debug.compiler.arguments << L"-I";
+	linux_debug.compiler.arguments << L"/usr/include/dbus-1.0";
+	linux_debug.compiler.arguments << L"-I";
+	if (state.cache_versions[0].arch == L"X86" || state.cache_versions[0].arch == L"ARM") linux_debug.compiler.arguments << L"/usr/lib/dbus-1.0/include";
+	else if (state.cache_versions[0].arch == L"X64" || state.cache_versions[0].arch == L"ARM64") linux_debug.compiler.arguments << L"/usr/lib64/dbus-1.0/include";
+	linux_debug.linker.arguments << L"-O0";
+	linux_debug.linker.arguments << L"-ggdb";
+	linux_debug.linker.arguments << L"-l:libdl.so";
+	linux_debug.linker.arguments << L"-l:libunistring.so";
+	linux_debug.linker.arguments << L"-l:libcrypto.so";
+	linux_debug.linker.arguments << L"-l:libssl.so";
+	linux_debug.linker.arguments << L"-l:libpng.so";
+	linux_debug.linker.arguments << L"-l:libjpeg.so";
+	linux_debug.linker.arguments << L"-l:libtiff.so";
+	linux_debug.linker.arguments << L"-l:libdbus-1.so";
+	linux_debug.linker.arguments << L"-l:libX11.so";
+	linux_debug.linker.arguments << L"-l:libXrender.so";
+	linux_debug.linker.arguments << L"-l:libXrandr.so";
+	linux_debug.linker.arguments << L"-l:libXcursor.so";
+	linux_debug.linker.arguments << L"-l:libcairo.so";
+	linux_debug.linker.arguments << L"-l:libfreetype.so";
+	linux_debug.linker.arguments << L"-l:libfontconfig.so";
+
+	// TODO: ADD FURTHER DEPENDENCIES
+
+	linux_debug.defines << L"ENGINE_LINUX_FULL";
+	linux_debug.defines << L"ENGINE_DEBUG";
+	linux_release_pure.compiler.arguments << L"-O3";
+	linux_release_pure.compiler.arguments << L"-fvisibility=hidden";
+	linux_release_pure.linker.arguments << L"-O3";
+	linux_release_pure.linker.arguments << L"-fvisibility=hidden";
+	linux_release_pure.linker.arguments << L"-s";
+	linux_debug_pure.compiler.arguments << L"-O0";
+	linux_debug_pure.compiler.arguments << L"-ggdb";
+	linux_debug_pure.linker.arguments << L"-O0";
+	linux_debug_pure.linker.arguments << L"-ggdb";
+	linux_debug_pure.defines << L"ENGINE_DEBUG";
+	auto & linux_console = CreateAtom(L"", state.current_os, L"", L"Console");
+	linux_console.defines << L"ENGINE_SUBSYSTEM_CONSOLE";
+	auto & linux_gui = CreateAtom(L"", state.current_os, L"", L"GUI");
+	linux_gui.defines << L"ENGINE_SUBSYSTEM_GUI";
+	linux_gui.resource.command = L"ertres";
+	linux_gui.resource.is_linux = true;
+	linux_gui.resource.icon_codec = L"ICO";
+	linux_gui.resource.icon_extension = L"ico";
+	linux_gui.resource.icon_sizes << 16;
+	linux_gui.resource.icon_sizes << 24;
+	linux_gui.resource.icon_sizes << 32;
+	linux_gui.resource.icon_sizes << 48;
+	linux_gui.resource.icon_sizes << 64;
+	linux_gui.resource.icon_sizes << 256;
+	auto & linux_library = CreateAtom(L"", state.current_os, L"", L"Library");
+	linux_library.defines << L"ENGINE_SUBSYSTEM_LIBRARY";
+	linux_library.extension_executable = L"so";
+	linux_library.linker.arguments << L"-shared";
+	linux_library.linker.arguments << L"-fPIC";
+	auto & linux_silent = CreateAtom(L"", state.current_os, L"", L"Silent");
+	linux_silent.defines << L"ENGINE_SUBSYSTEM_SILENT";
+	auto & linux_arch_release = CreateAtom(state.cache_versions[0].arch, state.current_os, L"Release", L"");
+	auto & linux_arch_debug = CreateAtom(state.cache_versions[0].arch, state.current_os, L"Debug", L"");
+	auto & linux_arch_release_pure = CreateAtom(state.cache_versions[0].arch, state.current_os, L"PureRelease", L"");
+	auto & linux_arch_debug_pure = CreateAtom(state.cache_versions[0].arch, state.current_os, L"PureDebug", L"");
+	linux_arch_release.path_object = state.object_path + L"/" + state.current_os.LowerCase() + L"_" + state.cache_versions[0].arch.LowerCase() + L"_release";
+	linux_arch_debug.path_object = state.object_path + L"/" + state.current_os.LowerCase() + L"_" + state.cache_versions[0].arch.LowerCase() + L"_debug";
+	linux_arch_release_pure.path_object = state.object_path + L"/" + state.current_os.LowerCase() + L"_" + state.cache_versions[0].arch.LowerCase() + L"_release_pure";
+	linux_arch_debug_pure.path_object = state.object_path + L"/" + state.current_os.LowerCase() + L"_" + state.cache_versions[0].arch.LowerCase() + L"_debug_pure";
+}
 void GenerateAtoms(Console & console)
 {
 	console.Write(L"Creating configuration partitions...");
@@ -976,6 +1163,9 @@ void GenerateAtoms(Console & console)
 	#endif
 	#ifdef ENGINE_MACOSX
 	GenerateAtomsMacOSX(console);
+	#endif
+	#ifdef ENGINE_LINUX
+	GenerateAtomsLinux(console);
 	#endif
 	console << TextColor(ConsoleColor::Green) << L"Succeed." << TextColorDefault() << LineFeed();
 }
@@ -1008,6 +1198,21 @@ void PutConfigurationChanges(Console & console)
 	aa->SetValue(L"X64", true);
 	try { aa->CreateValue(L"ARM64", RegistryValueType::Boolean); } catch (...) {}
 	aa->SetValue(L"ARM64", true);
+	#endif
+	#ifdef ENGINE_LINUX
+	if (GetSystemPlatform() == Platform::X86) {
+		try { aa->CreateValue(L"X86", RegistryValueType::Boolean); } catch (...) {}
+		aa->SetValue(L"X86", true);
+	} else if (GetSystemPlatform() == Platform::X64) {
+		try { aa->CreateValue(L"X64", RegistryValueType::Boolean); } catch (...) {}
+		aa->SetValue(L"X64", true);
+	} else if (GetSystemPlatform() == Platform::ARM) {
+		try { aa->CreateValue(L"ARM", RegistryValueType::Boolean); } catch (...) {}
+		aa->SetValue(L"ARM", true);
+	} else if (GetSystemPlatform() == Platform::ARM64) {
+		try { aa->CreateValue(L"ARM64", RegistryValueType::Boolean); } catch (...) {}
+		aa->SetValue(L"ARM64", true);
+	}
 	#endif
 	console << TextColor(ConsoleColor::Green) << L"Succeed." << TextColorDefault() << LineFeed();
 }
@@ -1049,6 +1254,9 @@ int Main(void)
 			#endif
 			#ifdef ENGINE_MACOSX
 			console << L"The presence of Xcode is necessary." << LineFeed();
+			#endif
+			#ifdef ENGINE_LINUX
+			console << L"The presence of GCC and development packages is necessary." << LineFeed();
 			#endif
 			console << LineFeed();
 		}

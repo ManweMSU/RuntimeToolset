@@ -153,6 +153,9 @@ int CreateEnvironment(Console & console)
 		#ifdef ENGINE_MACOSX
 		part_name = L"Mac";
 		#endif
+		#ifdef ENGINE_LINUX
+		part_name = L"Linux";
+		#endif
 		FileStream stream(state.project_root_path + L"/.vscode/c_cpp_properties.json", AccessReadWrite, OpenAlways);
 		Configurations configs;
 		JsonSerializer serializer(&stream);
@@ -202,6 +205,21 @@ int CreateEnvironment(Console & console)
 		config->macFrameworkPath << L"/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks";
 		config->compilerPath = L"/usr/bin/clang";
 		config->intelliSenseMode = L"clang-x64";
+		#endif
+		#ifdef ENGINE_LINUX
+		config->macFrameworkPath.Clear();
+		config->includePath << L"/usr/include";
+		config->browse.path << L"/usr/include/*";
+		config->includePath << L"/usr/include/freetype2";
+		config->browse.path << L"/usr/include/freetype2/*";
+		config->includePath << L"/usr/include/dbus-1.0";
+		config->browse.path << L"/usr/include/dbus-1.0/*";
+		config->includePath << L"/usr/lib64/dbus-1.0/include";
+		config->browse.path << L"/usr/lib64/dbus-1.0/include/*";
+		config->includePath << L"/usr/lib/dbus-1.0/include";
+		config->browse.path << L"/usr/lib/dbus-1.0/include/*";
+		config->compilerPath = L"/usr/bin/gcc";
+		config->intelliSenseMode = L"linux-gcc-x64";
 		#endif
 		config->cStandard = L"c11";
 		config->cppStandard = L"c++17";
@@ -331,6 +349,10 @@ int CreateLaunchTask(Console & console)
 		#ifdef ENGINE_MACOSX
 		task->type = L"cppdbg";
 		task->MIMode = L"lldb";
+		#endif
+		#ifdef ENGINE_LINUX
+		task->type = L"cppdbg";
+		task->MIMode = L"gdb";
 		#endif
 		stream.Seek(0, Begin);
 		stream.SetLength(0);

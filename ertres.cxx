@@ -1,6 +1,6 @@
 ﻿#include "ertcom.h"
 
-enum class ResourceMode { Windows, MacOSX };
+enum class ResourceMode { Windows, MacOSX, Linux };
 
 struct UniqueIcon
 {
@@ -148,6 +148,11 @@ int BuildIcon(const string & path, UniqueIcon ** icon, Console & console, bool i
 			res_state.file_icon_counter++;
 			result.Reference = L"FileIcon" + string(res_state.file_icon_counter);
 		} else result.Reference = L"AppIcon";
+	} else if (res_state.mode == ResourceMode::Linux) {
+		if (is_file_icon) {
+			res_state.file_icon_counter++;
+			result.Reference = L"file_format_" + string(res_state.file_icon_counter) + L".ico";
+		} else result.Reference = state.project_output_name + L".ico";
 	}
 	res_state.icon_database.Append(result);
 	if (icon) *icon = &res_state.icon_database.LastElement();
@@ -647,6 +652,75 @@ int BuildBundle(Console & console)
 	return ERTBT_SUCCESS;
 }
 
+void GenerateLinuxApplicationManifest(const string & at, Console & console)
+{
+	if (!state.clean) {
+		try {
+			FileStream out(at, AccessRead, OpenExisting);
+			auto out_time = IO::DateTime::GetFileAlterTime(out.Handle());
+			if (out_time > state.project_time) return;
+		} catch (...) {}
+	}
+	if (!state.silent) console << L"Writing application manifest " << TextColor(ConsoleColor::Cyan) << IO::Path::GetFileName(at) << TextColorDefault() << L"...";
+	try {
+		SafePointer<Registry> manifest = CreateRegistry();
+		manifest->CreateValue(L"Name", RegistryValueType::String);
+		manifest->SetValue(L"Name", state.version_information.ApplicationName);
+		manifest->CreateValue(L"Version", RegistryValueType::String);
+		manifest->SetValue(L"Version", FormatString(L"%0.%1", state.version_information.VersionMajor, state.version_information.VersionMinor));
+		manifest->CreateValue(L"Executable", RegistryValueType::String);
+		manifest->SetValue(L"Executable", state.project_output_name);
+		if (res_state.application_icon) {
+			manifest->CreateValue(L"IconFile", RegistryValueType::String);
+			manifest->SetValue(L"IconFile", res_state.application_icon->Reference);
+		}
+		for (auto & ff : res_state.file_formats) {
+			auto name = ff.Extension.LowerCase();
+			if (ff.IsProtocol) name += L":";
+			manifest->CreateNode(name);
+			SafePointer<RegistryNode> fn = manifest->OpenNode(name);
+			fn->CreateValue(L"Description", RegistryValueType::String);
+			fn->SetValue(L"Description", ff.Description);
+			if (!ff.IsProtocol) {
+				if (ff.Icon) {
+					fn->CreateValue(L"IconFile", RegistryValueType::String);
+					fn->SetValue(L"IconFile", ff.Icon->Reference);
+				}
+				fn->CreateValue(L"CanCreate", RegistryValueType::Boolean);
+				fn->SetValue(L"CanCreate", ff.CanCreate);
+			}
+		}
+		FileStream manifest_stream(at, AccessReadWrite, CreateAlways);
+		RegistryToText(manifest, &manifest_stream, Encoding::UTF8);
+	} catch (...) {
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed" << TextColorDefault() << LineFeed();
+		throw;
+	}
+	if (!state.silent) console << TextColor(ConsoleColor::Green) << L"Succeed" << TextColorDefault() << LineFeed();
+}
+int BuildLinuxApplicationEnvironment(Console & console)
+{
+	if (!state.silent) console << L"Building Linux Application Environment...";
+	try {
+		for (auto & i : res_state.icon_database) if (!CopyFile(i.ConvertedPath, state.project_output_root + L"/" + i.Reference)) throw Exception();
+		for (auto & r : res_state.resources) {
+			auto inner_name = r.Locale.Length() ? (r.Name + L"." + r.Locale + L".ersrc") : (r.Name + L".ersrc");
+			if (!CopyFile(r.SourcePath, state.project_output_root + L"/" + inner_name)) {
+				if (!state.silent) {
+					console << TextColor(ConsoleColor::Red) << L"Failed" << TextColorDefault() << LineFeed();
+					console << TextColor(ConsoleColor::Red) << FormatString(L"Failed to import resource file \"%0\".", r.SourcePath) << TextColorDefault() << LineFeed();
+				}
+				return ERTBT_BUNDLE_BUILD_ERROR;
+			}
+		}
+	} catch (...) {
+		if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed" << TextColorDefault() << LineFeed();
+		return ERTBT_BUNDLE_BUILD_ERROR;
+	}
+	if (!state.silent) console << TextColor(ConsoleColor::Green) << L"Succeed" << TextColorDefault() << LineFeed();
+	return ERTBT_SUCCESS;
+}
+
 int Main(void)
 {
 	Codec::InitializeDefaultCodecs();
@@ -678,6 +752,7 @@ int Main(void)
 			}
 			if (configuration->GetValueBoolean(L"Windows")) res_state.mode = ResourceMode::Windows;
 			else if (configuration->GetValueBoolean(L"MacOSX")) res_state.mode = ResourceMode::MacOSX;
+			else if (configuration->GetValueBoolean(L"Linux")) res_state.mode = ResourceMode::Linux;
 			else {
 				if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Resource tool configuration is invalid." << TextColorDefault() << LineFeed();
 				return ERTBT_INVALID_CONFIGURATION;
@@ -709,6 +784,10 @@ int Main(void)
 				res_state.resource_manifest_file = IO::ExpandPath(state.project_object_path + L"/" + state.project_output_name + L".plist");
 				GeneratePropertyList(res_state.resource_manifest_file, console);
 				return BuildBundle(console);
+			} else if (res_state.mode == ResourceMode::Linux) {
+				res_state.resource_manifest_file = IO::ExpandPath(state.project_object_path + L"/" + state.project_output_name + L".app.ini");
+				GenerateLinuxApplicationManifest(res_state.resource_manifest_file, console);
+				return BuildLinuxApplicationEnvironment(console);
 			}
 		} else if (!state.silent) {
 			console << L"Command line syntax:" << LineFeed();

@@ -10,6 +10,234 @@ struct {
 	uint major, minor;
 } runtime_ver_state;
 
+#define ERTBT_SCRIPT_COMMAND_MKDIR	L"mkdir"
+#define ERTBT_SCRIPT_COMMAND_MV		L"mv"
+#define ERTBT_SCRIPT_COMMAND_CP		L"cp"
+#define ERTBT_SCRIPT_COMMAND_RM		L"rm"
+#define ERTBT_SCRIPT_COMMAND_BUILD	L"compile"
+#define ERTBT_SCRIPT_COMMAND_LINK	L"link"
+#define ERTBT_SCRIPT_COMMAND_ATTACH	L"attachment"
+#define ERTBT_SCRIPT_COMMAND_RSRC	L"resource"
+#define ERTBT_SCRIPT_COMMAND_LINKA	L"linkarg"
+#define ERTBT_SCRIPT_COMMAND_IFEQ	L"ifeq"
+#define ERTBT_SCRIPT_COMMAND_IFNEQ	L"ifneq"
+#define ERTBT_SCRIPT_COMMAND_GOTO	L"goto"
+#define ERTBT_SCRIPT_COMMAND_EXIT	L"exit"
+#define ERTBT_SCRIPT_COMMAND_SET	L"set"
+#define ERTBT_SCRIPT_COMMAND_ALERT	L"alert"
+#define ERTBT_SCRIPT_COMMAND_FAIL	L"fail"
+#define ERTBT_SCRIPT_COMMAND_DEFINE	L"define"
+#define ERTBT_SCRIPT_COMMAND_INC	L"include"
+#define ERTBT_SCRIPT_VAR_PROJROOT	L"PROJROOT"
+#define ERTBT_SCRIPT_VAR_OBJROOT	L"OBJROOT"
+#define ERTBT_SCRIPT_VAR_EXROOT		L"EXROOT"
+#define ERTBT_SCRIPT_VAR_ERTRSRC	L"ERTRSRC"
+#define ERTBT_SCRIPT_VAR_ERTMDL		L"ERTMDL"
+#define ERTBT_SCRIPT_VAR_ARCH		L"ARCH"
+#define ERTBT_SCRIPT_VAR_OS			L"OS"
+#define ERTBT_SCRIPT_VAR_SUBSYS		L"SUBSYS"
+#define ERTBT_SCRIPT_VAR_CONF		L"CONFIG"
+
+Array<string> * DecomposeCommand(const string & command)
+{
+	SafePointer< Array<string> > parts = new Array<string>(0x10);
+	int sp = 0;
+	while (sp < command.Length()) {
+		while (sp < command.Length() && (command[sp] == L' ' || command[sp] == L'\t')) sp++;
+		if (sp < command.Length()) {
+			widechar bc = 0;
+			if (command[sp] == L'\'' || command[sp] == L'\"') bc = command[sp];
+			auto ep = sp;
+			if (bc == 0) {
+				while (ep < command.Length() && command[ep] != L' ' && command[ep] != L'\t') ep++;
+				parts->Append(command.Fragment(sp, ep - sp));
+				sp = ep;
+			} else {
+				ep++;
+				while (ep < command.Length()) {
+					if (command[ep] == bc) {
+						if (command[ep + 1] == bc) {
+							ep += 2;
+						} else {
+							ep++;
+							widechar from[3] = { bc, bc, 0 };
+							widechar to[2] = { bc, 0 };
+							parts->Append(command.Fragment(sp + 1, ep - sp - 2).Replace(from, to));
+							sp = ep;
+							break;
+						}
+					} else ep++;
+				}
+			}
+		}
+	}
+	parts->Retain();
+	return parts;
+}
+string SubstituteVariables(const string & text, const Volumes::Dictionary<string, string> & vars)
+{
+	DynamicString result;
+	int i = 0, length = text.Length();
+	while (i < length) {
+		if (text[i] == L'$') {
+			i++;
+			int j = i;
+			while (i < length && text[i] != L'$') i++;
+			if (i == j) { result << L'$'; } else {
+				auto value = vars[text.Fragment(j, i - j).UpperCase()];
+				if (value) result << *value;
+			}
+			i++;
+		} else { result << text[i]; i++; }
+	}
+	return result.ToString();
+}
+void HandleScriptFile(const string & source, Array<string> * insert_build, Array<string> * insert_link, Array<string> * alerts)
+{
+	SafePointer<Stream> stream = new FileStream(source, AccessRead, OpenExisting);
+	SafePointer<TextReader> reader = new TextReader(stream, Encoding::UTF8);
+	Array<string> commands(0x200);
+	auto wd = IO::GetCurrentDirectory();
+	IO::SetCurrentDirectory(IO::Path::GetDirectory(source));
+	Volumes::Dictionary<string, string> variables;
+	variables.Append(ERTBT_SCRIPT_VAR_PROJROOT, state.project_root_path);
+	variables.Append(ERTBT_SCRIPT_VAR_OBJROOT, state.project_object_path);
+	variables.Append(ERTBT_SCRIPT_VAR_EXROOT, state.project_output_root);
+	variables.Append(ERTBT_SCRIPT_VAR_ERTRSRC, state.runtime_resources_path);
+	variables.Append(ERTBT_SCRIPT_VAR_ERTMDL, state.runtime_modules_path);
+	variables.Append(ERTBT_SCRIPT_VAR_ARCH, state.arch.Name);
+	variables.Append(ERTBT_SCRIPT_VAR_OS, state.os.Name);
+	variables.Append(ERTBT_SCRIPT_VAR_SUBSYS, state.subsys.Name);
+	variables.Append(ERTBT_SCRIPT_VAR_CONF, state.conf.Name);
+	while (!reader->EofReached()) commands << reader->ReadLine();
+	int ip = 0;
+	while (ip < commands.Length()) {
+		SafePointer< Array<string> > arguments = DecomposeCommand(commands[ip]);
+		if (!arguments || !arguments->Length()) { ip++; continue; }
+		for (auto & a : arguments->Elements()) a = SubstituteVariables(a, variables);
+		auto & command = arguments->FirstElement();
+		if (!command.Length() || command[command.Length() - 1] == L':') {
+			ip++; continue;
+		} else if (command.Length() && command[0] == L'#') {
+			ip++; continue;
+		} else if (string::CompareIgnoreCase(command, ERTBT_SCRIPT_COMMAND_MKDIR) == 0) {
+			for (int i = 1; i < arguments->Length(); i++) IO::CreateDirectoryTree(arguments->ElementAt(i));
+		} else if (string::CompareIgnoreCase(command, ERTBT_SCRIPT_COMMAND_MV) == 0) {
+			if (arguments->Length() > 2) IO::MoveFile(arguments->ElementAt(1), arguments->ElementAt(2));
+			else throw InvalidArgumentException();
+		} else if (string::CompareIgnoreCase(command, ERTBT_SCRIPT_COMMAND_CP) == 0) {
+			if (arguments->Length() > 2) {
+				SafePointer<Stream> from = new FileStream(arguments->ElementAt(1), AccessRead, OpenExisting);
+				SafePointer<Stream> to = new FileStream(arguments->ElementAt(2), AccessWrite, CreateAlways);
+				from->CopyTo(to);
+			} else throw InvalidArgumentException();
+		} else if (string::CompareIgnoreCase(command, ERTBT_SCRIPT_COMMAND_RM) == 0) {
+			for (int i = 1; i < arguments->Length(); i++) {
+				auto type = IO::GetFileType(arguments->ElementAt(i));
+				if (type == IO::FileType::Directory) IO::RemoveEntireDirectory(arguments->ElementAt(i));
+				else IO::RemoveFile(arguments->ElementAt(i));
+			}
+		} else if (string::CompareIgnoreCase(command, ERTBT_SCRIPT_COMMAND_BUILD) == 0) {
+			if (insert_build) for (int i = 1; i < arguments->Length(); i++) {
+				auto path = ExpandPath(arguments->ElementAt(i));
+				bool present = false;
+				for (auto & c : insert_build->Elements()) if (string::CompareIgnoreCase(c, path) == 0) { present = true; break; }
+				if (!present) insert_build->Append(ExpandPath(arguments->ElementAt(i)));
+			} else throw InvalidStateException();
+		} else if (string::CompareIgnoreCase(command, ERTBT_SCRIPT_COMMAND_LINK) == 0) {
+			if (insert_link) for (int i = 1; i < arguments->Length(); i++) {
+				insert_link->Append(ExpandPath(arguments->ElementAt(i)));
+			} else throw InvalidStateException();
+		} else if (string::CompareIgnoreCase(command, ERTBT_SCRIPT_COMMAND_ATTACH) == 0) {
+			if (arguments->Length() > 2) {
+				lang_ext_state.files_include << ExpandPath(arguments->ElementAt(1));
+				lang_ext_state.include_with_name << arguments->ElementAt(2);
+				lang_ext_state.include_as << 1;
+			} else throw InvalidArgumentException();
+		} else if (string::CompareIgnoreCase(command, ERTBT_SCRIPT_COMMAND_RSRC) == 0) {
+			if (arguments->Length() > 2) {
+				lang_ext_state.files_include << ExpandPath(arguments->ElementAt(1));
+				lang_ext_state.include_with_name << arguments->ElementAt(2);
+				lang_ext_state.include_as << 0;
+			} else throw InvalidArgumentException();
+		} else if (string::CompareIgnoreCase(command, ERTBT_SCRIPT_COMMAND_LINKA) == 0) {
+			for (int i = 1; i < arguments->Length(); i++) state.link_extra_args << arguments->ElementAt(i);
+		} else if (string::CompareIgnoreCase(command, ERTBT_SCRIPT_COMMAND_IFEQ) == 0) {
+			if (arguments->Length() > 3) {
+				if (string::CompareIgnoreCase(arguments->ElementAt(1), arguments->ElementAt(2)) == 0) {
+					int pos_jump = -1;
+					for (int j = 0; j < commands.Length(); j++) {
+						SafePointer< Array<string> > aj = DecomposeCommand(commands[j]);
+						if (aj && aj->Length() == 1) {
+							auto cj = SubstituteVariables(aj->ElementAt(0), variables);
+							if (cj.Length() && cj[cj.Length() - 1] == L':' && string::CompareIgnoreCase(cj.Fragment(0, cj.Length() - 1), arguments->ElementAt(3)) == 0) {
+								pos_jump = j + 1;
+								break;
+							}
+						}
+					}
+					if (pos_jump >= 0) { ip = pos_jump; continue; }
+				}
+			} else throw InvalidArgumentException();
+		} else if (string::CompareIgnoreCase(command, ERTBT_SCRIPT_COMMAND_IFNEQ) == 0) {
+			if (arguments->Length() > 3) {
+				if (string::CompareIgnoreCase(arguments->ElementAt(1), arguments->ElementAt(2)) != 0) {
+					int pos_jump = -1;
+					for (int j = 0; j < commands.Length(); j++) {
+						SafePointer< Array<string> > aj = DecomposeCommand(commands[j]);
+						if (aj && aj->Length() == 1) {
+							auto cj = SubstituteVariables(aj->ElementAt(0), variables);
+							if (cj.Length() && cj[cj.Length() - 1] == L':' && string::CompareIgnoreCase(cj.Fragment(0, cj.Length() - 1), arguments->ElementAt(3)) == 0) {
+								pos_jump = j + 1;
+								break;
+							}
+						}
+					}
+					if (pos_jump >= 0) { ip = pos_jump; continue; }
+				}
+			} else throw InvalidArgumentException();
+		} else if (string::CompareIgnoreCase(command, ERTBT_SCRIPT_COMMAND_GOTO) == 0) {
+			if (arguments->Length() > 1) {
+				int pos_jump = -1;
+				for (int j = 0; j < commands.Length(); j++) {
+					SafePointer< Array<string> > aj = DecomposeCommand(commands[j]);
+					if (aj && aj->Length() == 1) {
+						auto cj = SubstituteVariables(aj->ElementAt(0), variables);
+						if (cj.Length() && cj[cj.Length() - 1] == L':' && string::CompareIgnoreCase(cj.Fragment(0, cj.Length() - 1), arguments->ElementAt(1)) == 0) {
+							pos_jump = j + 1;
+							break;
+						}
+					}
+				}
+				if (pos_jump >= 0) { ip = pos_jump; continue; }
+			} else throw InvalidArgumentException();
+		} else if (string::CompareIgnoreCase(command, ERTBT_SCRIPT_COMMAND_EXIT) == 0) {
+			break;
+		} else if (string::CompareIgnoreCase(command, ERTBT_SCRIPT_COMMAND_SET) == 0) {
+			if (arguments->Length() > 2) {
+				variables.Update(arguments->ElementAt(1).UpperCase(), arguments->ElementAt(2));
+			} else throw InvalidArgumentException();
+		} else if (string::CompareIgnoreCase(command, ERTBT_SCRIPT_COMMAND_ALERT) == 0) {
+			if (alerts) for (int i = 1; i < arguments->Length(); i++) alerts->Append(arguments->ElementAt(i));
+		} else if (string::CompareIgnoreCase(command, ERTBT_SCRIPT_COMMAND_FAIL) == 0) {
+			if (alerts) for (int i = 1; i < arguments->Length(); i++) alerts->Append(arguments->ElementAt(i));
+			throw Exception();
+		} else if (string::CompareIgnoreCase(command, ERTBT_SCRIPT_COMMAND_DEFINE) == 0) {
+			for (int i = 1; i < arguments->Length(); i++) state.extra_define.Append(arguments->ElementAt(i));
+		} else if (string::CompareIgnoreCase(command, ERTBT_SCRIPT_COMMAND_INC) == 0) {
+			for (int i = 1; i < arguments->Length(); i++) state.extra_include.Append(ExpandPath(arguments->ElementAt(i)));
+		} else {
+			auto cmd = command;
+			arguments->RemoveFirst();
+			SafePointer<Process> executor = CreateCommandProcess(cmd, arguments);
+			if (!executor) throw InvalidArgumentException();
+			executor->Wait();
+			if (executor->GetExitCode()) throw Exception();
+		}
+		ip++;
+	}
+	IO::SetCurrentDirectory(wd);
+}
 int HandleProcessDirectives(const string & source, const string & object, const string & directive, Array<string> & command_line_ex, Console & console)
 {
 	Syntax::Spelling spelling;
@@ -73,7 +301,7 @@ int HandleProcessDirectives(const string & source, const string & object, const 
 	}
 	return ERTBT_SUCCESS;
 }
-int CompileSource(const string & source, const string & object, const string & log, Console & console, bool use_lang_ext = false)
+int CompileSource(const string & source, const string & object, const string & log, Console & console, Array<string> * insert_build, Array<string> * insert_link, bool use_lang_ext)
 {
 	Array<string> command_line_ex(0x10);
 	if (use_lang_ext) {
@@ -101,7 +329,7 @@ int CompileSource(const string & source, const string & object, const string & l
 		auto error = HandleProcessDirectives(source, object, lang_ext_command, command_line_ex, console);
 		if (error) return error;
 	}
-	if (!state.clean) {
+	if (!state.clean && object.Length()) {
 		try {
 			FileStream src(source, AccessRead, OpenExisting);
 			FileStream out(object, AccessRead, OpenExisting);
@@ -115,7 +343,7 @@ int CompileSource(const string & source, const string & object, const string & l
 			}
 		} catch (...) {}
 	}
-	if (string::CompareIgnoreCase(IO::Path::GetExtension(source), L"uiml") == 0) {
+	if (string::CompareIgnoreCase(IO::Path::GetExtension(source), ERTBT_SOURCE_FILE_UIML) == 0) {
 		Array<string> command_line(0x10);
 		command_line << source;
 		if (state.silent) command_line << L"-S";
@@ -130,7 +358,7 @@ int CompileSource(const string & source, const string & object, const string & l
 		uicc->Wait();
 		if (uicc->GetExitCode()) return ERTBT_COMPILATION_FAILED;
 		return ERTBT_SUCCESS;
-	} else if (string::CompareIgnoreCase(IO::Path::GetExtension(source), L"egsl") == 0) {
+	} else if (string::CompareIgnoreCase(IO::Path::GetExtension(source), ERTBT_SOURCE_FILE_EGSL) == 0) {
 		Array<string> command_line(0x10);
 		command_line << source;
 		if (state.silent) command_line << L"-S";
@@ -144,6 +372,27 @@ int CompileSource(const string & source, const string & object, const string & l
 		}
 		slt->Wait();
 		if (slt->GetExitCode()) return ERTBT_COMPILATION_FAILED;
+		return ERTBT_SUCCESS;
+	} else if (string::CompareIgnoreCase(IO::Path::GetExtension(source), ERTBT_SOURCE_FILE_SCRIPT) == 0) {
+		Array<string> alerts(0x40);
+		if (!state.silent) console << L"Executing " << TextColor(ConsoleColor::Cyan) << IO::Path::GetFileName(source) << TextColorDefault() << L"...";
+		try {
+			HandleScriptFile(source, insert_build, insert_link, &alerts);
+		} catch (...) {
+			if (!state.silent) {
+				console << TextColor(ConsoleColor::Red) << L"Failed" << TextColorDefault() << LineFeed();
+				console.SetTextColor(ConsoleColor::Red);
+				for (auto & a : alerts) console.WriteLine(a);
+				console.SetTextColor(ConsoleColor::Default);
+			}
+			return ERTBT_COMPILATION_FAILED;
+		}
+		if (!state.silent) {
+			console << TextColor(ConsoleColor::Green) << L"Succeed" << TextColorDefault() << LineFeed();
+			console.SetTextColor(ConsoleColor::Yellow);
+			for (auto & a : alerts) console.WriteLine(a);
+			console.SetTextColor(ConsoleColor::Default);
+		}
 		return ERTBT_SUCCESS;
 	} else {
 		auto da = local_config->GetValueString(L"Compiler/DefineArgument");
@@ -162,6 +411,7 @@ int CompileSource(const string & source, const string & object, const string & l
 		AppendArgumentLine(cc_args, oa, object);
 		SafePointer<RegistryNode> ld = local_config->OpenNode(L"Defines");
 		if (ld) for (auto & v : ld->GetValues()) AppendArgumentLine(cc_args, da, v + L"=1");
+		for (auto & v : state.extra_define) AppendArgumentLine(cc_args, da, v);
 		if (runtime_ver_state.alpha) {
 			AppendArgumentLine(cc_args, da, L"ENGINE_RUNTIME_VERSION_ALPHA=1");
 		} else {
@@ -229,6 +479,7 @@ int LinkExecutable(const Array<string> & obj_list, const string & output, const 
 	AppendArgumentLine(link_args, oa, output);
 	SafePointer<RegistryNode> la = local_config->OpenNode(L"Linker/Arguments");
 	if (la) for (auto & v : la->GetValues()) link_args << la->GetValueString(v);
+	for (auto & v : state.link_extra_args) link_args << v;
 	handle log_file = IO::CreateFile(log, AccessReadWrite, CreateAlways);
 	IO::SetStandardOutput(log_file);
 	IO::SetStandardError(log_file);
@@ -260,8 +511,8 @@ int LinkExecutable(const Array<string> & obj_list, const string & output, const 
 int CopyAttachments(Console & console)
 {
 	SafePointer<RegistryNode> node = state.project->OpenNode(L"Attachments");
+	auto dest_path = IO::Path::GetDirectory(state.output_executable);
 	if (node) {
-		auto dest_path = IO::Path::GetDirectory(state.output_executable);
 		for (auto & ann : node->GetSubnodes()) {
 			SafePointer<RegistryNode> sub = node->OpenNode(ann);
 			if (!sub) continue;
@@ -270,7 +521,7 @@ int CopyAttachments(Console & console)
 			source = ExpandPath(source, state.project_root_path);
 			dest = ExpandPath(dest, dest_path);
 			if (!state.silent) console << L"Copying attachment " << TextColor(ConsoleColor::Cyan) << IO::Path::GetFileName(dest) << TextColorDefault() << L"...";
-			IO::CreateDirectoryTree(IO::Path::GetDirectory(dest));
+			try { IO::CreateDirectoryTree(IO::Path::GetDirectory(dest)); } catch (...) {}
 			if (!CopyFile(source, dest)) {
 				if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed" << TextColorDefault() << LineFeed();
 				return ERTBT_ATTACHMENT_FAILED;
@@ -280,9 +531,9 @@ int CopyAttachments(Console & console)
 	}
 	for (int i = 0; i < lang_ext_state.include_as.Length(); i++) if (lang_ext_state.include_as[i] == 1) {
 		auto & source = lang_ext_state.files_include[i];
-		auto & dest = lang_ext_state.include_with_name[i];
+		auto dest = ExpandPath(lang_ext_state.include_with_name[i], dest_path);
 		if (!state.silent) console << L"Copying attachment " << TextColor(ConsoleColor::Cyan) << IO::Path::GetFileName(dest) << TextColorDefault() << L"...";
-		IO::CreateDirectoryTree(IO::Path::GetDirectory(dest));
+		try { IO::CreateDirectoryTree(IO::Path::GetDirectory(dest)); } catch (...) {}
 		if (!CopyFile(source, dest)) {
 			if (!state.silent) console << TextColor(ConsoleColor::Red) << L"Failed" << TextColorDefault() << LineFeed();
 			return ERTBT_ATTACHMENT_FAILED;
@@ -307,42 +558,6 @@ int CopyAttachments(Console & console)
 		}
 	}
 	return ERTBT_SUCCESS;
-}
-Array<string> * DecomposeCommand(const string & command)
-{
-	SafePointer< Array<string> > parts = new Array<string>(0x10);
-	int sp = 0;
-	while (sp < command.Length()) {
-		while (sp < command.Length() && (command[sp] == L' ' || command[sp] == L'\t')) sp++;
-		if (sp < command.Length()) {
-			widechar bc = 0;
-			if (command[sp] == L'\'' || command[sp] == L'\"') bc = command[sp];
-			auto ep = sp;
-			if (bc == 0) {
-				while (ep < command.Length() && command[ep] != L' ' && command[ep] != L'\t') ep++;
-				parts->Append(command.Fragment(sp, ep - sp));
-				sp = ep;
-			} else {
-				ep++;
-				while (ep < command.Length()) {
-					if (command[ep] == bc) {
-						if (command[ep + 1] == bc) {
-							ep += 2;
-						} else {
-							ep++;
-							widechar from[3] = { bc, bc, 0 };
-							widechar to[2] = { bc, 0 };
-							parts->Append(command.Fragment(sp + 1, ep - sp - 2).Replace(from, to));
-							sp = ep;
-							break;
-						}
-					} else ep++;
-				}
-			}
-		}
-	}
-	parts->Retain();
-	return parts;
 }
 int InvokeExternalTools(Console & console)
 {
@@ -527,7 +742,7 @@ int BuildRuntime(Console & console)
 	for (auto & f : compile_list) {
 		auto fo = IO::ExpandPath(state.runtime_object_path + L"/" + IO::Path::GetFileNameWithoutExtension(f));
 		auto fl = fo + L".log"; fo += L"." + local_config->GetValueString(L"ObjectExtension");
-		auto error = CompileSource(f, fo, fl, console);
+		auto error = CompileSource(f, fo, fl, console, &compile_list, 0, false);
 		if (error) return error;
 	}
 	auto end = GetTimerValue();
@@ -547,7 +762,7 @@ int BuildProject(Console & console)
 	for (auto & f : *object_files_search) object_files << IO::ExpandPath(state.runtime_object_path + L"/" + f);
 	source_files << state.runtime_bootstrapper_path;
 	if (state.project->GetValueBoolean(L"CompileAll")) {
-		auto filter = local_config->GetValueString(L"CompileFilter") + L";*.uiml;*.egsl";
+		auto filter = local_config->GetValueString(L"CompileFilter") + ERTBT_SUPPORTED_EXTENSIONS;
 		SafePointer< Array<string> > source_files_search = IO::Search::GetFiles(state.project_root_path + L"/" + filter, true);
 		for (auto & f : *source_files_search) if (IO::Path::GetFileName(f)[0] != L'.') source_files << IO::ExpandPath(state.project_root_path + L"/" + f);
 	} else {
@@ -555,26 +770,33 @@ int BuildProject(Console & console)
 		if (list) for (auto & v : list->GetValues()) source_files << ExpandPath(list->GetValueString(v), state.project_root_path);
 	}
 	if (state.link_with_roots.Length()) {
-		auto filter = local_config->GetValueString(L"CompileFilter") + L";*.uiml;*.egsl";
+		auto filter = local_config->GetValueString(L"CompileFilter") + ERTBT_SUPPORTED_EXTENSIONS;
 		for (auto & module : state.link_with_roots) {
-			SafePointer< Array<string> > source_files_search = IO::Search::GetFiles(module + L"/" + filter, true);
-			for (auto & f : *source_files_search) if (IO::Path::GetFileName(f)[0] != L'.') source_files << IO::ExpandPath(module + L"/" + f);
+			if (FileExists(module + L"/module." ERTBT_SOURCE_FILE_SCRIPT)) {
+				source_files << IO::ExpandPath(module + L"/module." ERTBT_SOURCE_FILE_SCRIPT);
+			} else {
+				SafePointer< Array<string> > source_files_search = IO::Search::GetFiles(module + L"/" + filter, true);
+				for (auto & f : *source_files_search) if (IO::Path::GetFileName(f)[0] != L'.') source_files << IO::ExpandPath(module + L"/" + f);
+			}
 		}
 	}
 	if (!state.pathout) {
 		IO::CreateDirectoryTree(state.project_output_root);
 		if (state.clean) ClearDirectory(state.project_output_root);
 		IO::CreateDirectoryTree(state.project_object_path);
-		for (auto & f : source_files) {
+		for (int i = 0; i < source_files.Length(); i++) {
+			auto f = source_files[i];
 			auto fo = IO::ExpandPath(state.project_object_path + L"/" + IO::Path::GetFileNameWithoutExtension(f));
 			auto fl = fo + L".log";
-			auto le = false;
-			if (string::CompareIgnoreCase(IO::Path::GetExtension(f), L"uiml") == 0) { fo += L".eui"; le = true; }
-			else if (string::CompareIgnoreCase(IO::Path::GetExtension(f), L"egsl") == 0) { fo += L".egso"; le = true; }
+			auto use_auxilary_language_extensions = false;
+			auto add_output_to_linkage = true;
+			if (string::CompareIgnoreCase(IO::Path::GetExtension(f), ERTBT_SOURCE_FILE_UIML) == 0) { fo += L".eui"; use_auxilary_language_extensions = true; add_output_to_linkage = false; }
+			else if (string::CompareIgnoreCase(IO::Path::GetExtension(f), ERTBT_SOURCE_FILE_EGSL) == 0) { fo += L".egso"; use_auxilary_language_extensions = true; add_output_to_linkage = false; }
+			else if (string::CompareIgnoreCase(IO::Path::GetExtension(f), ERTBT_SOURCE_FILE_SCRIPT) == 0) { fo = L""; use_auxilary_language_extensions = false; add_output_to_linkage = false; }
 			else fo += L"." + local_config->GetValueString(L"ObjectExtension");
-			auto error = CompileSource(f, fo, fl, console, le);
+			auto error = CompileSource(f, fo, fl, console, &source_files, &object_files, use_auxilary_language_extensions);
 			if (error) return error;
-			if (!le) object_files << fo;
+			if (add_output_to_linkage) object_files << fo;
 		}
 	}
 	if (!state.pathout) {

@@ -62,6 +62,9 @@ int InstallPackage(Console & console, const string & package)
 	#ifdef ENGINE_MACOSX
 	os = L"MacOSX";
 	#endif
+	#ifdef ENGINE_LINUX
+	os = L"Linux";
+	#endif
 	if (ApplicationPlatform == Platform::X86) arch = L"X86";
 	else if (ApplicationPlatform == Platform::X64) arch = L"X64";
 	else if (ApplicationPlatform == Platform::ARM) arch = L"ARM";

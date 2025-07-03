@@ -1,0 +1,23 @@
+﻿OutputName = "uicc"
+Subsystem = "Console"
+UseVersionDefines = true
+Attachments {
+	A {
+		From = "uicc.ini"
+		To = "uicc.ini"
+	}
+}
+CompileList {
+	A = "uicc.cxx"
+	B = "uiml.cxx"
+}
+VersionInformation {
+	ApplicationIdentifier = "EngineRuntime.UIML.Compiler"
+	ApplicationName = "Engine Runtime User Interface Console Compiler"
+	CompanyIdentifier = "EngineSoftware"
+	CompanyName = "Engine Software"
+	Copyright = "© Engine Software. 2019-2025"
+	Description = "Compiles user interfaces from the console."
+	InternalName = "uicc"
+	Version = "1.0.9.28"
+}
